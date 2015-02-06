@@ -1,0 +1,8 @@
+.buildlog
+.DS_Store
+.idea
+samurai.iml
+.pub/
+build/
+packages
+pubspec.lock
