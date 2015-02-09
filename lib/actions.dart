@@ -92,7 +92,7 @@ class AttackDeclaration extends Action {
     }
 
     if (saveFaceIndex >= loser.hand.length) {
-      loser.human.actionFailed("Invalid card index");
+      loser.human.alert("Invalid card index");
       return saveFace(loser, discard);
     }
 
@@ -102,7 +102,7 @@ class AttackDeclaration extends Action {
       discard.add(card);
       return true;
     } else {
-      loser.human.actionFailed("Only save face card can be played after defeat in battle");
+      loser.human.alert("Only save face card can be played after defeat in battle");
       return saveFace(loser, discard);
     }
   }

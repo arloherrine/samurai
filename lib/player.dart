@@ -2,13 +2,15 @@ part of samurai;
 
 class Player {
 
-  Human human;
-  List<Card> hand;
-  House daimyo;
-  House samurai;
+  final Human human;
+  final List<Card> hand = new List();
+  House daimyo = null;
+  final House samurai = new House.samurai();
   Player ally;
-  int honor;
-  bool isShogun;
+  int honor = 0;
+  bool isShogun = false;
+
+  Player(this.human);
 
   int calculateHonorGain() {
     if (daimyo == null) {

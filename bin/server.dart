@@ -25,7 +25,7 @@ class ServerHuman extends Human {
 
   }
 
-  void actionFailed(String msg) {
+  void alert(String msg) {
 
   }
 
@@ -42,48 +42,8 @@ class ServerHuman extends Human {
   }
 }
 
-Map<String, Stream> lobby = new Map();
-Map<String, StreamSubscription> gameStartSubscriptions = new Map();
-Map<int, Game> games = new Map();
+Map<String, Game> games = new Map();
 
-/**
- * Handle an established [WebSocket] connection.
- *
- * The WebSocket can send search requests as JSON-formatted messages,
- * which will be responded to with a series of results and finally a done
- * message.
- */
-void handleWebSocket(WebSocket webSocket) {
-  log.info('New WebSocket connection');
-
-  webSocket.handleError((error) => log.warning('Bad WebSocket request'));
-  Stream broadcast = webSocket.asBroadcastStream(onCancel: (StreamSubscription ss) => ss.cancel());
-  broadcast.first.then((String command) {
-    List<String> parts = command.split(" ");
-    if (parts.length != 2 || parts[0] != "name") {
-      webSocket.close(-1, "name command must be first command");
-    } else {
-      lobby[parts[1]] = broadcast;
-      gameStartSubscriptions[parts[1]] = broadcast.listen((String command) {
-        List<String> parts = command.split(" ");
-        if (parts[0] != "start") {
-          webSocket.add("Only valid command is 'start'");
-        } else {
-          List<String> names = parts.getRange(1, parts.length);
-          Map<String, Stream> streams = new Map();
-          for (String name in names) {
-            streams[name] = lobby.remove(name);
-            gameStartSubscriptions[name].cancel();
-            gameStartSubscriptions.remove(name);
-          }
-          // TODO create game from name/stream pairs
-        }
-      });
-    }
-  });
-
-  new ServerHuman(broadcast);
-}
 
 void main() {
   // Set up logger.
@@ -108,8 +68,22 @@ void main() {
     // The client will connect using a WebSocket. Upgrade requests to '/ws' and
     // forward them to 'handleWebSocket'.
     router.serve('/ws')
-    .transform(new WebSocketTransformer())
-    .listen(handleWebSocket);
+    .listen((HttpRequest request) {
+      String game = request.uri.queryParameters['game'];
+      String player = request.uri.queryParameters['name'];
+
+      WebSocketTransformer.upgrade(request).then((WebSocket webSocket) {
+        if (!games.containsKey(game)) {
+          games[game] = new Game();
+        }
+        Stream broadcast = webSocket.asBroadcastStream(onCancel: (StreamSubscription ss) => ss.cancel());
+        broadcast.handleError((error) => log.warning('Bad WebSocket request'));
+        games[game].players.add(new Player(new ServerHuman(broadcast)));
+        if (games[game].players.length > 2) {
+          games[game].play();
+        }
+      });
+    });
 
     // Set up default handler. This will serve files from our 'build' directory.
     var virDir = new http_server.VirtualDirectory(buildPath);

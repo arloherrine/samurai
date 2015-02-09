@@ -203,11 +203,11 @@ class Dishonor extends ActionCard {
       if (card is SaveFace) {
         return response;
       } else {
-        target.human.actionFailed("Can only play save face card when dishonored");
+        target.human.alert("Can only play save face card when dishonored");
         return getResponse(target);
       }
     } else if (response is SepukuDishonorResponse && response.daimyo && target.daimyo == null) {
-      target.human.actionFailed("Nonexistant daimyo cannot commit sepuku");
+      target.human.alert("Nonexistant daimyo cannot commit sepuku");
       return getResponse(target);
     } else {
       return response;
@@ -238,9 +238,9 @@ List<Daimyo> createDaimyos() {
   ];
 }
 
-List<Card> createDeck() {
-  // TODO do this after daimyo distribution
-  var deck = createDaimyos();
+List<Card> createDeck(List<Card> remainingDaimyos) {
+  List<Card> deck = new List();
+  deck.addAll(remainingDaimyos);
 
   deck.addAll(new Iterable.generate(5, (x) => new Okugata(10, 3)));
   deck.addAll(new Iterable.generate(5, (x) => new Okugata(5, 4)));

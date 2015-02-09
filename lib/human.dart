@@ -4,15 +4,15 @@ abstract class Human {
 
   Action getAction();
 
-  void updateDisplay(Game game);
-
-  void actionFailed(String msg);
-
   DishonorResponse getDishonorResponse();
 
   bool getTakeCastle();
 
   int getSaveFace();
+
+  void updateDisplay(Game game);
+
+  void alert(String msg);
 }
 
 class DishonorResponse {}
