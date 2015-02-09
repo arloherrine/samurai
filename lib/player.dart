@@ -57,6 +57,7 @@ class Player {
         ally = null;
       }
     }
+    return contents;
   }
 
   String validateSteal(House targetHouse, int cardIndex, int destination) {
@@ -73,26 +74,18 @@ class Player {
         if (daimyo == null) {
           return "Can't put stolen goods in nonexistant daimyo house";
         }
-        break;
+        return daimyo.validatePutInHouse(card);
+      case 1:
+        return samurai.validatePutInHouse(card);
       default:
+        return null;
     }
-    return null;
   }
 
   void doSteal(House targetHouse, int cardIndex, int destination, List<Card> discard) {
-    Card card = targetHouse.contents[cardIndex];
-
-    switch (destination) {
-      case 0:
-        daimyo.putInHouse(card);
-        break;
-      case 1:
-        samurai.putInHouse(card);
-        break;
-      default:
-        discard.add(card);
-    }
-    targetHouse.contents.removeAt(cardIndex);
+    Card card = targetHouse.contents.removeAt(cardIndex);
+    List<Card> toPlace = [daimyo.contents, samurai.contents, discard][destination];
+    toPlace.add(card);
   }
 
 }

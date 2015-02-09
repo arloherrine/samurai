@@ -224,9 +224,17 @@ class PutInHouseAction extends Action {
       return "Can't put that into a house";
     }
 
-    if (daimyo && player.daimyo == null && player.ally == null) {
+    House house;
+    if (!daimyo) {
+      house = player.samurai;
+    } else if (player.daimyo != null) {
+      house = player.daimyo;
+    } else if (player.ally != null) {
+      house = player.ally.daimyo;
+    } else {
       return "You don't have a daimyo to put that on.";
     }
+    return house.validatePutInHouse(card);
   }
 
   int perform(List<Card> deck, List<Card> discard, List<Player> players, Interface interface) {
@@ -242,7 +250,7 @@ class PutInHouseAction extends Action {
       house = player.ally.daimyo;
     }
 
-    house.putInHouse(card);
+    house.contents.add(card);
     player.hand.removeAt(cardIndex);
 
     return 1;

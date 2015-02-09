@@ -12,36 +12,6 @@ import 'package:samurai/main.dart';
 final Logger log = new Logger('SamuraiServer');
 
 
-class ServerHuman extends Human {
-  Stream inputStream;
-
-  ServerHuman(this.inputStream);
-
-  Action getAction() {
-
-  }
-
-  void updateDisplay(Game game) {
-
-  }
-
-  void alert(String msg) {
-
-  }
-
-  DishonorResponse getDishonorResponse() {
-
-  }
-
-  bool getTakeCastle() {
-
-  }
-
-  int getSaveFace() {
-
-  }
-}
-
 Map<String, Game> games = new Map();
 
 
@@ -77,7 +47,7 @@ void main() {
           games[game] = new Game();
         }
         webSocket.handleError((error) => log.warning('Bad WebSocket request'));
-        games[game].players.add(new Player(new ServerHuman(webSocket)));
+        games[game].players.add(new Player());
         if (games[game].players.length > 2) {
           games[game].play();
         }

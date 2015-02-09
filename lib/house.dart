@@ -1,6 +1,7 @@
 part of samurai;
 
 class House {
+
   final List<Card> contents = new List();
   int armies = 0;
   bool hasOkugata = false;
@@ -26,20 +27,18 @@ class House {
     return contents.map((card) => card.strength).fold(head.strength, (a,b) => a+b);
   }
 
-  void putInHouse(Card card) {
+  String validatePutInHouse(Card card) {
     if (card is Castle) {
       if (!(head is Daimyo)) {
-        throw new InvalidActionException("Only daimyos can have castles.");
+        return "Only daimyos can have castles.";
       }
       if (contents.any((card) => card is Castle)) {
-        throw new InvalidActionException("Daimyos can only have one castle.");
+        return "Daimyos can only have one castle.";
       }
-    } else if (card is Okugata && contents.where((card) => card is Okugata).length > 0) {
-      throw new InvalidActionException("A house can only have one okugata.");
+    } else if (card is Okugata && contents.any((card) => card is Okugata)) {
+      return "A house can only have one okugata.";
     } else if (card is Army && contents.where((card) => card is Army).length > 4) {
-      throw new InvalidActionException("A house can only have at most 5 armies.");
+      return "A house can only have at most 5 armies.";
     }
-
-    contents.add(card);
   }
 }
