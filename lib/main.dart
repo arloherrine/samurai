@@ -9,5 +9,5 @@ part 'cards.dart';
 part 'game.dart';
 part 'house.dart';
 part 'player.dart';
-part 'human.dart';
 part 'actions.dart';
+part 'interface.dart';

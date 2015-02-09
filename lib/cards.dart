@@ -21,26 +21,35 @@ class Daimyo extends StatCard implements ActionCard {
 
   int actionCost() => 1;
 
-  void perform(Player player, List<Card> deck, List<Card> discard, List<Player> players, List args) {
+  String validate(Player player, List<Player> players, List<String> args) {
     if (args.length != 1) {
-      throw new InvalidActionException("Daimyo only takes a player index argument");
+      return "Daimyo only takes a player index argument";
     }
-    if (!(args[0] is int)) {
-      throw new InvalidActionException("Invalid player index arg");
+    int targetIndex;
+    try {
+      targetIndex = int.parse(args[0]);
+    } on FormatException {
+      return "Invalid target index arg";
     }
-    Player target = players[args[0]];
-    if (player == target) {
-      if (player.daimyo = null) {
-        player.daimyo = new House.daimyo(this);
-      } else {
-        throw new InvalidActionException("You can only have one daimyo!");
-      }
+    Player target = players[targetIndex];
+    if (player == target && player.daimyo != null) {
+      return "You can only have one daimyo!";
+    }
+    if (player.ally != target || target.daimyo != null) {
+      return "You can't play a daimyo on that player";
+    }
+    return null;
+  }
+
+  void perform(int playerIndex, List<Card> discard, List<Player> players, Interface interface, List<String> args) {
+    Player player = players[playerIndex];
+    Player target = players[int.parse(args[0])];
+    if (player == target && player.daimyo == null) {
+      player.daimyo = new House.daimyo(this);
     } else if (player.ally == target && target.daimyo == null) {
       target.daimyo = new House.daimyo(this);
       target.ally = null;
       player.ally = null;
-    } else {
-      throw new InvalidActionException("You can't play a daimyo on that player");
     }
   }
 }
@@ -53,32 +62,66 @@ class Okugata extends StatCard {
 abstract class ActionCard extends Card {
   ActionCard(String name) : super(name);
   int actionCost() => 1;
-  void perform(Player player, List<Card> deck, List<Card> discard, List<Player> players, List args);
+  String validate(Player player, List<Player> players, List<String> args);
+  void perform(int playerIndex, List<Card> discard, List<Player> players, Interface interface, List args);
 }
 
 final int NINJA_HONOR_LOSS = 25;
 
 class NinjaSpy extends ActionCard {
   NinjaSpy() : super("Ninja Spy");
-  void perform(Player player, List<Card> deck, List<Card> discard, List<Player> players, List args) {
-    if (args.length != 4) {
-      throw new InvalidActionException("Ninja spy takes target player, house, card, and desination args");
-    }
-    var targetIndex = args[0];
-    var daimyo = args[1];
-    var cardIndex = args[2];
-    var destinationIndex = args[3];
 
-    if (!(targetIndex is int && daimyo is bool && cardIndex is int && destinationIndex is int)) {
-      throw new InvalidActionException("Invalid arg types");
+  String validate(Player player, List<Player> players, List<String> args) {
+    if (args.length != 4) {
+      return "Ninja spy takes target player, house, card, and desination args";
     }
+
+    int targetIndex;
+    try {
+      targetIndex = int.parse(args[0]);
+    } on FormatException {
+      return "Invalid target index arg";
+    }
+    bool daimyo;
+    switch (args[1]) {
+      case 'daimyo': daimyo = true; break;
+      case 'samurai': daimyo = false; break;
+      default:
+        return "Invalid house arg";
+    }
+    int cardIndex;
+    try {
+      cardIndex = int.parse(args[2]);
+    } on FormatException {
+      return "Invalid card index arg";
+    }
+    int destinationIndex;
+    switch (args[3]) {
+      case 'daimyo': destinationIndex = 0; break;
+      case 'samurai': destinationIndex = 1; break;
+      case 'discard': destinationIndex = 2; break;
+      default:
+        return "Invalid destination arg";
+    }
+
     Player target = players[targetIndex];
     House house = daimyo ? target.daimyo : target.samurai;
     if (house == null) {
-      throw new InvalidActionException("Target player doesn't have a daimyo to steal from");
+      return "Target player doesn't have a daimyo to steal from";
     }
+    return player.validateSteal(house, cardIndex, destinationIndex);
+  }
 
-    player.validateSteal(house, cardIndex, destinationIndex);
+  void perform(int playerIndex, List<Card> discard, List<Player> players, Interface interface, List<String> args) {
+    int targetIndex = int.parse(args[0]);
+    bool daimyo = args[1] == 'daimyo';
+    int cardIndex = int.parse(args[2]);
+    int destinationIndex = args[3] == 'daimyo' ? 0 : args[3] == 'samurai' ? 1 : 2;
+
+    Player player = players[playerIndex];
+    Player target = players[targetIndex];
+    House house = daimyo ? target.daimyo : target.samurai;
+
     player.doSteal(house, cardIndex, destinationIndex, discard);
     player.honor -= NINJA_HONOR_LOSS;
   }
@@ -86,28 +129,78 @@ class NinjaSpy extends ActionCard {
 
 class EliteNinjaSpy extends ActionCard {
   EliteNinjaSpy() : super("Elite Ninja Spy");
-  void perform(Player player, List<Card> deck, List<Card> discard, List<Player> players, List args) {
-    if (args.length != 6) {
-      throw new InvalidActionException("Elite Ninja spy takes target player, house, 2 card, and 2 desination args");
-    }
-    var targetIndex = args[0];
-    var daimyo = args[1];
-    var cardIndex1 = args[2];
-    var cardIndex2 = args[3];
-    var destinationIndex1 = args[4];
-    var destinationIndex2 = args[5];
 
-    if (!(targetIndex is int && daimyo is bool && cardIndex1 is int && destinationIndex1 is int && cardIndex2 is int && destinationIndex2 is int)) {
-      throw new InvalidActionException("Invalid arg types");
+  String validate(Player player, List<Player> players, List<String> args) {
+    if (args.length != 6) {
+      return "Elite Ninja spy takes target player, house, 2 card, and 2 desination args";
     }
+    int targetIndex;
+    try {
+      targetIndex = int.parse(args[0]);
+    } on FormatException {
+      return "Invalid target index arg";
+    }
+    bool daimyo;
+    switch (args[1]) {
+      case 'daimyo': daimyo = true; break;
+      case 'samurai': daimyo = false; break;
+      default:
+        return "Invalid house arg";
+    }
+    int cardIndex1;
+    try {
+      cardIndex1 = int.parse(args[2]);
+    } on FormatException {
+      return "Invalid card index arg";
+    }
+    int cardIndex2;
+    try {
+      cardIndex2 = int.parse(args[3]);
+    } on FormatException {
+      return "Invalid card index arg";
+    }
+    int destinationIndex1;
+    switch (args[4]) {
+      case 'daimyo': destinationIndex1 = 0; break;
+      case 'samurai': destinationIndex1 = 1; break;
+      case 'discard': destinationIndex1 = 2; break;
+      default:
+        return "Invalid destination arg";
+    }
+    int destinationIndex2;
+    switch (args[5]) {
+      case 'daimyo': destinationIndex2 = 0; break;
+      case 'samurai': destinationIndex2 = 1; break;
+      case 'discard': destinationIndex2 = 2; break;
+      default:
+        return "Invalid destination arg";
+    }
+
     Player target = players[targetIndex];
     House house = daimyo ? target.daimyo : target.samurai;
     if (house == null) {
-      throw new InvalidActionException("Target player doesn't have a daimyo to steal from");
+      return "Target player doesn't have a daimyo to steal from";
     }
 
-    player.validateSteal(house, cardIndex1, destinationIndex1);
-    player.validateSteal(house, cardIndex2, destinationIndex2);
+    String error = player.validateSteal(house, cardIndex1, destinationIndex1);
+    if (error == null) {
+      error = player.validateSteal(house, cardIndex2, destinationIndex2);
+    }
+    return error;
+  }
+
+  void perform(int playerIndex, List<Card> discard, List<Player> players, Interface interface, List<String> args) {
+    int targetIndex = int.parse(args[0]);
+    bool daimyo = args[1] == 'daimyo';
+    int cardIndex1 = int.parse(args[2]);
+    int cardIndex2 = int.parse(args[3]);
+    int destinationIndex1 = args[4] == 'daimyo' ? 0 : args[4] == 'samurai' ? 1 : 2;
+    int destinationIndex2 = args[5] == 'daimyo' ? 0 : args[5] == 'samurai' ? 1 : 2;
+
+    Player player = players[playerIndex];
+    Player target = players[targetIndex];
+    House house = daimyo ? target.daimyo : target.samurai;
+
     player.doSteal(house, cardIndex1, destinationIndex1, discard);
     player.doSteal(house, cardIndex2, destinationIndex2, discard);
     player.honor -= NINJA_HONOR_LOSS;
@@ -116,20 +209,41 @@ class EliteNinjaSpy extends ActionCard {
 
 class NinjaAssassin extends ActionCard {
   NinjaAssassin() : super("Ninja Assassin");
-  void perform(Player player, List<Card> deck, List<Card> discard, List<Player> players, List args) {
+
+  String validate(Player player, List<Player> players, List<String> args) {
     if (args.length != 2) {
-      throw new InvalidActionException("Elite Ninja spy takes target player, house, 2 card, and 2 desination args");
+      return "Elite Ninja spy takes target player, house, 2 card, and 2 desination args";
     }
-    var targetIndex = args[0];
-    var daimyo = args[1];
+    int targetIndex;
+    try {
+      targetIndex = int.parse(args[0]);
+    } on FormatException {
+      return "Invalid target index arg";
+    }
+    bool daimyo;
+    switch (args[1]) {
+      case 'daimyo': daimyo = true; break;
+      case 'samurai': daimyo = false; break;
+      default:
+        return "Invalid house arg";
+    }
     if (!(targetIndex is int && daimyo is bool)) {
-      throw new InvalidActionException("Invalid arg types");
+      return "Invalid arg types";
     }
     Player target = players[targetIndex];
     House house = daimyo ? target.daimyo : target.samurai;
     if (house == null) {
-      throw new InvalidActionException("Target player doesn't have a daimyo to assassinate");
+      return "Target player doesn't have a daimyo to assassinate";
     }
+    return null;
+  }
+
+  void perform(int playerIndex, List<Card> discard, List<Player> players, Interface interface, List args) {
+    Player player = players[playerIndex];
+    int targetIndex = int.parse(args[0]);
+    bool daimyo = args[1] == 'daimyo';
+    Player target = players[targetIndex];
+    House house = daimyo ? target.daimyo : target.samurai;
     HouseGuard guard = house.contents.firstWhere((card) => card is HouseGuard);
     int killRoll;
     if (guard == null) {
@@ -145,7 +259,7 @@ class NinjaAssassin extends ActionCard {
       player.honor -= NINJA_HONOR_LOSS;
     }
 
-    if (new Random().nextInt(5) > killRoll) {
+    if (interface.roll(playerIndex, 1).first > killRoll) {
       target.killHouse(daimyo);
       if (!daimyo && player.ally == target) {
         player.ally = null;
@@ -171,46 +285,36 @@ class Dishonor extends ActionCard {
 
   int actionCost() => 2;
 
-  void perform(Player player, List<Card> deck, List<Card> discard, List<Player> players, List targetIndexList) {
-    if (targetIndexList.length != 1) {
-      throw new InvalidActionException("Dishonor only takes a player index argument");
+  String validate(Player player, List<Player> players, List<String> args) {
+    if (args.length != 1) {
+      return "Dishonor only takes a player index argument";
     }
-    if (!(targetIndexList[0] is int)) {
-      throw new InvalidActionException("Invalid player index arg");
-    }
-    Player target = players[targetIndexList[0]];
-    DishonorResponse response = getResponse(target);
-    if (response is SaveFaceDishonorResponse) {
-      discard.add(target.hand.removeAt(response.cardIndex));
-      target.honor -= SF_LOST_HONOR;
-    } else {
-      if (response is SepukuDishonorResponse) {
-        discard.addAll(target.killHouse(response.daimyo));
-      } else {
-        target.honor -= LOST_HONOR;
-      }
-      if (target.daimyo == null && target.ally != null) {
-        target.ally.ally = null;
-        target.ally = null;
-      }
+    int targetIndex;
+    try {
+      targetIndex = int.parse(args[0]);
+    } on FormatException {
+      return "Invalid target index arg";
     }
   }
 
-  DishonorResponse getResponse(Player target) {
-    DishonorResponse response = target.human.getDishonorResponse();
-    if (response is SaveFaceDishonorResponse) {
-      Card card = target.hand[response.cardIndex];
-      if (card is SaveFace) {
-        return response;
-      } else {
-        target.human.alert("Can only play save face card when dishonored");
-        return getResponse(target);
-      }
-    } else if (response is SepukuDishonorResponse && response.daimyo && target.daimyo == null) {
-      target.human.alert("Nonexistant daimyo cannot commit sepuku");
-      return getResponse(target);
-    } else {
-      return response;
+  void perform(int playerIndex, List<Card> discard, List<Player> players, Interface interface, List<String> args) {
+    Player player = players[playerIndex];
+    int targetIndex = int.parse(args[0]);
+    Player target = players[targetIndex];
+
+    SaveFace saveFaceCard = target.hand.firstWhere((c) => c is SaveFace, orElse:() => null);
+    switch (interface.getDishonorResponse(targetIndex, target.daimyo != null, saveFaceCard != null)) {
+      case DishonorResponse.SAVE_FACE:
+        target.hand.remove(saveFaceCard);
+        discard.add(saveFaceCard);
+        target.honor -= LOST_HONOR;
+        break;
+      case DishonorResponse.NOTHING:
+        target.honor -= SF_LOST_HONOR; break;
+      case DishonorResponse.DAIMYO_SEPUKU:
+        target.killHouse(true); break;
+      case DishonorResponse.SAMURAI_SEPUKU:
+        target.killHouse(false); break;
     }
   }
 }

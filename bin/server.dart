@@ -76,9 +76,8 @@ void main() {
         if (!games.containsKey(game)) {
           games[game] = new Game();
         }
-        Stream broadcast = webSocket.asBroadcastStream(onCancel: (StreamSubscription ss) => ss.cancel());
-        broadcast.handleError((error) => log.warning('Bad WebSocket request'));
-        games[game].players.add(new Player(new ServerHuman(broadcast)));
+        webSocket.handleError((error) => log.warning('Bad WebSocket request'));
+        games[game].players.add(new Player(new ServerHuman(webSocket)));
         if (games[game].players.length > 2) {
           games[game].play();
         }

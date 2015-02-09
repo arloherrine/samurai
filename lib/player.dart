@@ -2,7 +2,6 @@ part of samurai;
 
 class Player {
 
-  final Human human;
   final List<Card> hand = new List();
   House daimyo = null;
   final House samurai = new House.samurai();
@@ -10,7 +9,7 @@ class Player {
   int honor = 0;
   bool isShogun = false;
 
-  Player(this.human);
+  Player();
 
   int calculateHonorGain() {
     if (daimyo == null) {
@@ -60,23 +59,24 @@ class Player {
     }
   }
 
-  void validateSteal(House targetHouse, int cardIndex, int destination) {
+  String validateSteal(House targetHouse, int cardIndex, int destination) {
     Card card = targetHouse.contents[cardIndex];
     if (card is HouseGuard) {
-      throw new InvalidActionException("Can't steal house guard");
+      return "Can't steal house guard";
     }
     if (card is StatCard && card.isNinjaProof()) {
-      throw new InvalidActionException("Can't steal castles or okugatas");
+      return "Can't steal castles or okugatas";
     }
 
     switch (destination) {
       case 0:
         if (daimyo == null) {
-          throw new InvalidActionException("Can't put stolen goods in nonexistant daimyo house");
+          return "Can't put stolen goods in nonexistant daimyo house";
         }
         break;
       default:
     }
+    return null;
   }
 
   void doSteal(House targetHouse, int cardIndex, int destination, List<Card> discard) {
