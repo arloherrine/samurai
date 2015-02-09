@@ -86,37 +86,39 @@ class AttackDeclaration extends Declaration {
     Castle castle = loser.daimyo.contents.firstWhere((c) => c is Castle, orElse: () => null);
     if (castle != null) {
       loser.daimyo.contents.remove(castle);
-      if (interface.getTakeCastle(winnerIndex)) {
-        Castle oldCastle = winner.daimyo.contents.firstWhere((c) => c is Castle, orElse: () => null);
-        if (oldCastle != null) {
-          winner.daimyo.contents.remove(oldCastle);
-          discard.add(oldCastle);
+      interface.requestTakeCastle(winnerIndex, (bool tookCastle) {
+        if (tookCastle) {
+          Castle oldCastle = winner.daimyo.contents.firstWhere((c) => c is Castle, orElse: () => null);
+          if (oldCastle != null) {
+            winner.daimyo.contents.remove(oldCastle);
+            discard.add(oldCastle);
+          }
+          winner.daimyo.contents.add(castle);
+        } else {
+          discard.add(castle);
         }
-        winner.daimyo.contents.add(castle);
-      } else {
-        discard.add(castle);
-      }
+      });
     }
 
-    if (loser.isShogun || !saveFace(loserIndex, players, discard, interface)) {
+    if (loser.isShogun) {
       loser.killHouse(true);
+    } else {
+      SaveFace saveFaceCard = players[loserIndex].hand.firstWhere((c) => c is SaveFace, orElse:() => null);
+      if (saveFaceCard == null) {
+        loser.killHouse(true);
+      }
+      interface.requestSaveFace(loserIndex, (bool saved) {
+        if (saved) {
+          players[loserIndex].hand.remove(saveFaceCard);
+          discard.add(saveFaceCard);
+        } else {
+          loser.killHouse(true);
+        }
+      });
     }
 
     winner.isShogun = loser.isShogun;
     loser.isShogun = false;
-  }
-
-  bool saveFace(int loserIndex, List<Player> players, List<Card> discard, Interface interface) {
-    SaveFace saveFaceCard = players[loserIndex].hand.firstWhere((c) => c is SaveFace, orElse:() => null);
-    if (saveFaceCard == null) {
-      return false;
-    }
-    bool saved = interface.getSaveFace(loserIndex);
-    if (saved) {
-      players[loserIndex].hand.remove(saveFaceCard);
-      discard.add(saveFaceCard);
-    }
-    return saved;
   }
 }
 

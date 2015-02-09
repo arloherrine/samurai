@@ -303,19 +303,21 @@ class Dishonor extends ActionCard {
     Player target = players[targetIndex];
 
     SaveFace saveFaceCard = target.hand.firstWhere((c) => c is SaveFace, orElse:() => null);
-    switch (interface.getDishonorResponse(targetIndex, target.daimyo != null, saveFaceCard != null)) {
-      case DishonorResponse.SAVE_FACE:
-        target.hand.remove(saveFaceCard);
-        discard.add(saveFaceCard);
-        target.honor -= LOST_HONOR;
-        break;
-      case DishonorResponse.NOTHING:
-        target.honor -= SF_LOST_HONOR; break;
-      case DishonorResponse.DAIMYO_SEPUKU:
-        target.killHouse(true); break;
-      case DishonorResponse.SAMURAI_SEPUKU:
-        target.killHouse(false); break;
-    }
+    interface.requestDishonorResponse(targetIndex, target.daimyo != null, saveFaceCard != null, (DishonorResponse resp) {
+      switch (resp) {
+        case DishonorResponse.SAVE_FACE:
+          target.hand.remove(saveFaceCard);
+          discard.add(saveFaceCard);
+          target.honor -= LOST_HONOR;
+          break;
+        case DishonorResponse.NOTHING:
+          target.honor -= SF_LOST_HONOR; break;
+        case DishonorResponse.DAIMYO_SEPUKU:
+          target.killHouse(true); break;
+        case DishonorResponse.SAMURAI_SEPUKU:
+          target.killHouse(false); break;
+      }
+    });
   }
 }
 
@@ -371,6 +373,5 @@ List<Card> createDeck(List<Card> remainingDaimyos) {
   deck.add(new StatCard("Gunpowder Weapons", -20, -2, 6));
   deck.add(new StatCard("Noh Theater", 20, 3, 0));
 
-  deck.shuffle();
   return deck;
 }

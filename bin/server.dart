@@ -7,10 +7,55 @@ import 'package:http_server/http_server.dart' as http_server;
 import 'package:route/server.dart' show Router;
 import 'package:logging/logging.dart' show Logger, Level, LogRecord;
 import 'package:samurai/main.dart';
+import 'dart:math';
 
 
 final Logger log = new Logger('SamuraiServer');
 
+class ServerInterface extends Interface {
+
+  List<WebSocket> sockets;
+
+  List<Stream<String>> getCommandStreams() => sockets;
+
+  void initRandomSeed() {
+    int seed = new DateTime.now().millisecondsSinceEpoch;
+    this.random = new Random(seed);
+    update("seed 0x" + seed.toRadixString(16));
+  }
+
+  void update(String command) {
+    sockets.forEach((socket) => socket.add(command));
+  }
+
+  void alert(int playerIndex, String msg) {
+    sockets[playerIndex].add('alert ' + msg);
+  }
+
+  void init() {
+    for (int i = 0; i < sockets.length; i++) {
+      sockets[i].listen((String command) {
+        if (i != playerIndex) {
+          alert(i, "Please wait for your turn");
+        } else {
+          switch (expectedCommand) {
+            case 'action':
+              doAction(command); break;
+            case 'dishonored':
+              doDishonorResponse(command); break;
+            case 'castle':
+              doTakeCastle(command); break;
+            case 'save':
+              doSaveFace(command); break;
+            default:
+              alert(i, "Unrecognized expected command?");
+          }
+        }
+      });
+    }
+  }
+
+}
 
 Map<String, Game> games = new Map();
 
@@ -40,14 +85,15 @@ void main() {
     router.serve('/ws')
     .listen((HttpRequest request) {
       String game = request.uri.queryParameters['game'];
-      String player = request.uri.queryParameters['name'];
+//      String player = request.uri.queryParameters['name'];
 
       WebSocketTransformer.upgrade(request).then((WebSocket webSocket) {
         if (!games.containsKey(game)) {
-          games[game] = new Game();
+          games[game] = new Game(new ServerInterface());
         }
         webSocket.handleError((error) => log.warning('Bad WebSocket request'));
         games[game].players.add(new Player());
+        games[game].interface.sockets.add(webSocket);
         if (games[game].players.length > 2) {
           games[game].play();
         }

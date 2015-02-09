@@ -1,26 +1,45 @@
 part of samurai;
 
 abstract class Interface {
-  Action getAction(int playerIndex, List<Player> players, int remainingActions) {
-    String command = getRawResponse(playerIndex);
+
+  int playerIndex;
+  String expectedCommand;
+
+  List<Player> players;
+  int remainingActions;
+
+  bool hasDaimyo;
+  bool hasSaveFace;
+
+  Function callback;
+
+  void requestAction(int playerIndex, List<Player> players, int remainingActions, Function callback) {
+    this.playerIndex = playerIndex;
+    this.players = players;
+    this.remainingActions = remainingActions;
+    this.callback = callback;
+    expectedCommand = 'action';
+  }
+
+  void doAction(String command) {
     List<String> tokens = command.split(" ");
     if (tokens.length < 3) {
       alert(playerIndex, "Not enough arguments: " + command);
-      return getAction(playerIndex, players, remainingActions);
+      return;
     }
     if (tokens[0] != "action") {
       alert(playerIndex, "Expecting action command but received: " + command);
-      return getAction(playerIndex, players, remainingActions);
+      return;
     }
     try {
       int receivedIndex = int.parse(tokens[2]);
       if (receivedIndex != playerIndex) {
         alert(playerIndex, "first argument must always be the player's index: " + command);
-        return getAction(playerIndex, players, remainingActions);
+        return;
       }
     } on FormatException {
       alert(playerIndex, "first argument must always be the player's index: " + command);
-      return getAction(playerIndex, players, remainingActions);
+      return;
     }
 
     Action action;
@@ -35,7 +54,7 @@ abstract class Interface {
           targetIndex = int.parse(tokens[2]);
         } on FormatException {
           alert(playerIndex, "second argument to attack must be the target's index: " + command);
-          return getAction(playerIndex, players, remainingActions);
+          return;
         }
         action = new AttackDeclaration(playerIndex, targetIndex);
         break;
@@ -45,7 +64,7 @@ abstract class Interface {
           targetIndex = int.parse(tokens[2]);
         } on FormatException {
           alert(playerIndex, "second argument to ally must be the target's index: " + command);
-          return getAction(playerIndex, players, remainingActions);
+          return;
         }
         action = new AllyDeclaration(playerIndex, targetIndex);
         break;
@@ -59,7 +78,7 @@ abstract class Interface {
           cardIndex = int.parse(tokens[2]);
         } on FormatException {
           alert(playerIndex, "second argument to discard must be the card's index: " + command);
-          return getAction(playerIndex, players, remainingActions);
+          return;
         }
         action = new DiscardAction(playerIndex, cardIndex);
         break;
@@ -69,7 +88,7 @@ abstract class Interface {
           cardIndex = int.parse(tokens[2]);
         } on FormatException {
           alert(playerIndex, "second argument to put must be the card's index: " + command);
-          return getAction(playerIndex, players, remainingActions);
+          return;
         }
         bool daimyo;
         switch (tokens[3]) {
@@ -77,7 +96,7 @@ abstract class Interface {
           case 'samurai': daimyo = false; break;
           default:
             alert(playerIndex, "third argument to put must be house: " + command);
-            return getAction(playerIndex, players, remainingActions);
+            return;
         }
         action = new PutInHouseAction(playerIndex, cardIndex, daimyo);
         break;
@@ -87,149 +106,182 @@ abstract class Interface {
           cardIndex = int.parse(tokens[2]);
         } on FormatException {
           alert(playerIndex, "second argument to play must be the card's index: " + command);
-          return getAction(playerIndex, players, remainingActions);
+          return;
         }
         action = new PlayOnAction(playerIndex, cardIndex, tokens.getRange(3, tokens.length));
         break;
       default:
         alert(playerIndex, "unrecognized subcommand in: " + command);
-        return getAction(playerIndex, players, remainingActions);
+        return;
     }
     String validationMsg = action.validate(players, remainingActions);
     if (validationMsg != null) {
       alert(playerIndex, validationMsg);
-      return getAction(playerIndex, players, remainingActions);
+      return;
     }
     update(command);
-    return action;
+    callback(action);
   }
 
-  DishonorResponse getDishonorResponse(int playerIndex, bool hasDaimyo, bool hasSaveFace) {
-    String command = getRawResponse(playerIndex);
+  void requestDishonorResponse(int playerIndex, bool hasDaimyo, bool hasSaveFace, Function callback) {
+    playerIndex = playerIndex;
+    this.hasDaimyo = hasDaimyo;
+    this.hasSaveFace = hasSaveFace;
+    this.callback = callback;
+    expectedCommand = 'dishonored';
+  }
+
+  void doDishonorResponse(String command) {
     List<String> tokens = command.split(" ");
     if (tokens.length < 3) {
       alert(playerIndex, "Not enough arguments: " + command);
-      return getDishonorResponse(playerIndex, hasDaimyo, hasSaveFace);
+      return;
     }
     if (tokens[0] != "dishonored") {
       alert(playerIndex, "Expecting dishonored command but received: " + command);
-      return getDishonorResponse(playerIndex, hasDaimyo, hasSaveFace);
+      return;
     }
     try {
       int receivedIndex = int.parse(tokens[2]);
       if (receivedIndex != playerIndex) {
         alert(playerIndex, "first argument must always be the player's index: " + command);
-        return getDishonorResponse(playerIndex, hasDaimyo, hasSaveFace);
+        return;
       }
     } on FormatException {
       alert(playerIndex, "first argument must always be the player's index: " + command);
-      return getDishonorResponse(playerIndex, hasDaimyo, hasSaveFace);
+      return;
     }
     DishonorResponse result;
     switch (tokens[1]) {
       case 'nothing':
-        result = DishonorResponse.NOTHING; break;
+        result = DishonorResponse.NOTHING;
+        break;
       case 'save':
         if (!hasSaveFace) {
           alert(playerIndex, "You don't have a save face card to play");
-          return getDishonorResponse(playerIndex, hasDaimyo, hasSaveFace);
+          return;
         }
-        result = DishonorResponse.SAVE_FACE; break;
+        result = DishonorResponse.SAVE_FACE;
+        break;
       case 'sepuku':
         if (tokens.length < 3) {
           alert(playerIndex, "Sepuku response missing target: " + command);
-          return getDishonorResponse(playerIndex, hasDaimyo, hasSaveFace);
+          return;
         }
         switch (tokens[2]) {
           case 'daimyo':
             if (!hasDaimyo) {
               alert(playerIndex, "you don't have a daimyo to kill");
-              return getDishonorResponse(playerIndex, hasDaimyo, hasSaveFace);
+              return;
             }
-            result = DishonorResponse.DAIMYO_SEPUKU; break;
+            result = DishonorResponse.DAIMYO_SEPUKU;
+            break;
           case 'samurai':
-            result = DishonorResponse.SAMURAI_SEPUKU; break;
+            result = DishonorResponse.SAMURAI_SEPUKU;
+            break;
           default:
             alert(playerIndex, "unrecognized sepuku target in: " + command);
-            return getDishonorResponse(playerIndex, hasDaimyo, hasSaveFace);
+            return;
         }
       default:
         alert(playerIndex, "unrecognized dishonor response in: " + command);
-        return getDishonorResponse(playerIndex, hasDaimyo, hasSaveFace);
+        return;
     }
     update(command);
-    return result;
+    callback(result);
   }
 
-  bool getTakeCastle(int playerIndex) {
-    String command = getRawResponse(playerIndex);
+  void requestTakeCastle(int playerIndex, Function callback) {
+    this.playerIndex = playerIndex;
+    this.callback = callback;
+    this.expectedCommand = "castle";
+  }
+
+  void doTakeCastle(String command) {
     List<String> tokens = command.split(" ");
     if (tokens.length < 3) {
       alert(playerIndex, "Not enough arguments: " + command);
-      return getTakeCastle(playerIndex);
+      return;
     }
     if (tokens[0] != "castle") {
       alert(playerIndex, "Expecting castle command but received: " + command);
-      return getTakeCastle(playerIndex);
+      return;
     }
     try {
       int receivedIndex = int.parse(tokens[2]);
       if (receivedIndex != playerIndex) {
         alert(playerIndex, "first argument must always be the player's index: " + command);
-        return getTakeCastle(playerIndex);
+        return;
       }
     } on FormatException {
       alert(playerIndex, "first argument must always be the player's index: " + command);
-      return getTakeCastle(playerIndex);
+      return;
     }
     bool result;
     switch (tokens[1]) {
-      case 'take': result = true; break;
-      case 'burn': result = false; break;
+      case 'take':
+        result = true;
+        break;
+      case 'burn':
+        result = false;
+        break;
       default:
         alert(playerIndex, "unrecognized castle response in: " + command);
-        return getTakeCastle(playerIndex);
+        return;
     }
     update(command);
-    return result;
+    callback(result);
   }
 
-  bool getSaveFace(int playerIndex) {
-    String command = getRawResponse(playerIndex);
+  void requestSaveFace(int playerIndex, Function callback) {
+    this.playerIndex = playerIndex;
+    this.callback = callback;
+    this.expectedCommand = "save";
+  }
+
+  void doSaveFace(String command) {
     List<String> tokens = command.split(" ");
     if (tokens.length < 3) {
       alert(playerIndex, "Not enough arguments: " + command);
-      return getTakeCastle(playerIndex);
+      return;
     }
     if (tokens[0] != "save") {
       alert(playerIndex, "Expecting save command but received: " + command);
-      return getTakeCastle(playerIndex);
+      return;
     }
     try {
       int receivedIndex = int.parse(tokens[2]);
       if (receivedIndex != playerIndex) {
         alert(playerIndex, "first argument must always be the player's index: " + command);
-        return getTakeCastle(playerIndex);
+        return;
       }
     } on FormatException {
       alert(playerIndex, "first argument must always be the player's index: " + command);
-      return getTakeCastle(playerIndex);
+      return;
     }
     bool result;
     switch (tokens[1]) {
-      case 'save': result = true; break;
-      case 'dont': result = false; break;
+      case 'save':
+        result = true;
+        break;
+      case 'dont':
+        result = false;
+        break;
       default:
         alert(playerIndex, "unrecognized save response in: " + command);
-        return getTakeCastle(playerIndex);
+        return;
     }
     update(command);
-    return result;
+    callback(result);
   }
 
-  List<int> roll(int playerIndex, int dice);
+  Random random;
 
-  String getRawResponse(int playerIndex);
+  void initRandomSeed();
+
+  List<int> roll(int playerIndex, int dice) {
+    List<int> result = new Iterable.generate(dice, (x) => random.nextInt(6) + 1);
+  }
 
   void update(String command);
 
