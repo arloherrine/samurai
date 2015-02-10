@@ -10,6 +10,7 @@ class Game {
   final Interface interface;
   int currentTurn = 0;
   int currentActions = 0;
+  bool hasMadeDeclaration = false;
   bool isAnyoneShogun = false;
   List<Card> deck;
   List<Card> discard = new List();
@@ -31,13 +32,21 @@ class Game {
   }
 
   void scheduleAction() {
-    int playerIndex = currentTurn % players.length;
-    interface.requestAction(playerIndex, players, (players[playerIndex].getKi() ~/ 3) - currentActions, executeAction);
+    interface.requestAction(playerIndex(), players, remainingActions(), hasMadeDeclaration, executeAction);
   }
 
+  int playerIndex() => currentTurn % players.length;
+
+  int remainingActions() => currentActions < 5
+      ? (players[playerIndex()].getKi() ~/ 3) - currentActions
+      : 0;
 
   void executeAction(Action action) {
-    currentActions += action.perform(deck, discard, players, interface);
+    action.perform(deck, discard, players, interface);
+    currentActions += action.actions;
+    if (action is Declaration) {
+      hasMadeDeclaration = true;
+    }
     if (deck.isEmpty) {
       var tmp = deck;
       deck = discard;
@@ -45,12 +54,13 @@ class Game {
       deck.shuffle(interface.random);
     }
 
-    if (currentActions < 5) {
-      scheduleAction();
-    } else {
+    if (action is EndTurn) {
       currentActions = 0;
       currentTurn++;
+      hasMadeDeclaration = false;
       doTurn();
+    } else {
+      scheduleAction();
     }
   }
 

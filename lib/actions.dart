@@ -1,36 +1,46 @@
 part of samurai;
 
 abstract class Action {
-  int playerIndex;
-  Action(this.playerIndex);
+  final int playerIndex;
+  int actions;
+  Action(this.playerIndex, this.actions);
 
-  String validate(List<Player> players, int remainingActions);
-  int perform(List<Card> deck, List<Card> discard, List<Player> players, Interface interface);
+  String validate(List<Player> players, int remainingActions) {
+    String msg = validateImpl(players);
+    if (msg != null) {
+      return msg;
+    } else if (actions > remainingActions) {
+      return "Need $actions actions for that, but only have $remainingActions remaining;";
+    } else {
+      return null;
+    }
+  }
+
+
+  String validateImpl(List<Player> players);
+  void perform(List<Card> deck, List<Card> discard, List<Player> players, Interface interface);
 }
 
 class EndTurn extends Action {
-  EndTurn(int playerIndex) : super(playerIndex);
+  EndTurn(int playerIndex) : super(playerIndex, 0);
 
-  String validate(players, remainingActions) => null;
+  String validateImpl(players) => null;
 
-  int perform(List<Card> deck, List<Card> discard, List<Player> players, Interface interface) {
-    return 5;
-  }
+  void perform(List<Card> deck, List<Card> discard, List<Player> players, Interface interface) {}
 }
 
 abstract class Declaration extends Action {
-  Declaration(int playerIndex) : super(playerIndex);
+  Declaration(int playerIndex) : super(playerIndex, 0);
   void performDeclaration(List<Card> deck, List<Card> discard, List<Player> players, Interface interface);
-  int perform(List<Card> deck, List<Card> discard, List<Player> players, Interface interface) {
+  void perform(List<Card> deck, List<Card> discard, List<Player> players, Interface interface) {
     performDeclaration(deck, discard, players, interface);
-    return 0;
   }
 }
 
 class ShogunDeclaration extends Declaration {
   ShogunDeclaration(int playerIndex) : super(playerIndex);
 
-  String validate(players, remainingActions) {
+  String validateImpl(players) {
     Player player = players[playerIndex];
     if (player.isShogun) {
       return "You're already shogun!";
@@ -50,7 +60,7 @@ class AttackDeclaration extends Declaration {
   int targetIndex;
   AttackDeclaration(int playerIndex, this.targetIndex) : super(playerIndex);
 
-  String validate(players, remainingActions) {
+  String validateImpl(players) {
     Player player = players[playerIndex];
     Player target = players[targetIndex];
 
@@ -101,18 +111,18 @@ class AttackDeclaration extends Declaration {
     }
 
     if (loser.isShogun) {
-      loser.killHouse(true);
+      discard.addAll(loser.killHouse(true));
     } else {
       SaveFace saveFaceCard = players[loserIndex].hand.firstWhere((c) => c is SaveFace, orElse:() => null);
       if (saveFaceCard == null) {
-        loser.killHouse(true);
+        discard.addAll(loser.killHouse(true));
       }
       interface.requestSaveFace(loserIndex, (bool saved) {
         if (saved) {
           players[loserIndex].hand.remove(saveFaceCard);
           discard.add(saveFaceCard);
         } else {
-          loser.killHouse(true);
+          discard.addAll(loser.killHouse(true));
         }
       });
     }
@@ -126,7 +136,7 @@ class AllyDeclaration extends Declaration {
   int targetIndex;
   AllyDeclaration(int playerIndex, this.targetIndex) : super(playerIndex);
 
-  String validate(players, remainingActions) {
+  String validateImpl(players) {
     Player player = players[playerIndex];
     if (playerIndex == targetIndex) {
       return "You can't ally with yourself";
@@ -158,7 +168,7 @@ class DissolveDeclaration extends Declaration {
 
   DissolveDeclaration(int playerIndex) : super(playerIndex);
 
-  String validate(players, remainingActions) {
+  String validateImpl(players) {
     Player player = players[playerIndex];
     if (player.daimyo != null || player.ally == null) {
       "You don't have an alliance to dissolve";
@@ -174,25 +184,24 @@ class DissolveDeclaration extends Declaration {
 }
 
 class DrawAction extends Action {
-  DrawAction(int playerIndex) : super(playerIndex);
+  DrawAction(int playerIndex) : super(playerIndex, 1);
 
-  String validate(players, remainingActions) {
+  String validateImpl(players) {
     if (players[playerIndex].hand.length >= MAX_HAND_SIZE) {
       return "You can have at most " + MAX_HAND_SIZE.toString() + " cards in your hand";
     }
   }
 
-  int perform(List<Card> deck, List<Card> discard, List<Player> players, Interface interface) {
+  void perform(List<Card> deck, List<Card> discard, List<Player> players, Interface interface) {
     players[playerIndex].hand.add(deck.removeLast());
-    return 0;
   }
 }
 
 class DiscardAction extends Action {
   int cardIndex;
-  DiscardAction(int playerIndex, this.cardIndex) : super(playerIndex);
+  DiscardAction(int playerIndex, this.cardIndex) : super(playerIndex, 1);
 
-  String validate(players, remainingActions) {
+  String validateImpl(players) {
     Player player = players[playerIndex];
     if (player.hand.isEmpty) {
       return "You don't have anything to discard";
@@ -202,18 +211,17 @@ class DiscardAction extends Action {
     }
   }
 
-  int perform(List<Card> deck, List<Card> discard, List<Player> players, Interface interface) {
+  void perform(List<Card> deck, List<Card> discard, List<Player> players, Interface interface) {
     discard.add(players[playerIndex].hand.removeAt(cardIndex));
-    return 1;
   }
 }
 
 class PutInHouseAction extends Action {
   int cardIndex;
   bool daimyo;
-  PutInHouseAction(int playerIndex, this.cardIndex, this.daimyo) : super(playerIndex);
+  PutInHouseAction(int playerIndex, this.cardIndex, this.daimyo) : super(playerIndex, 1);
 
-  String validate(players, remainingActions) {
+  String validateImpl(players) {
     Player player = players[playerIndex];
     if (player.hand.isEmpty) {
       return "You don't any cards to play";
@@ -222,7 +230,7 @@ class PutInHouseAction extends Action {
       return "Invalid card index";
     }
     Card card = player.hand[cardIndex];
-    if (!(card is StatCard) && !(card is HouseGuard)) {
+    if (card is ActionCard || card is SaveFace) {
       return "Can't put that into a house";
     }
 
@@ -239,7 +247,7 @@ class PutInHouseAction extends Action {
     return house.validatePutInHouse(card);
   }
 
-  int perform(List<Card> deck, List<Card> discard, List<Player> players, Interface interface) {
+  void perform(List<Card> deck, List<Card> discard, List<Player> players, Interface interface) {
     Player player = players[playerIndex];
     Card card = player.hand[cardIndex];
 
@@ -254,8 +262,6 @@ class PutInHouseAction extends Action {
 
     house.contents.add(card);
     player.hand.removeAt(cardIndex);
-
-    return 1;
   }
 }
 
@@ -263,9 +269,9 @@ class PlayOnAction extends Action {
   int cardIndex;
   List args;
 
-  PlayOnAction(int playerIndex, this.cardIndex, this.args) : super(playerIndex);
+  PlayOnAction(int playerIndex, this.cardIndex, this.args) : super(playerIndex, -1);
 
-  String validate(players, remainingActions) {
+  String validateImpl(players) {
     Player player = players[playerIndex];
     if (player.hand.isEmpty) {
       return "You don't any cards to play";
@@ -279,17 +285,15 @@ class PlayOnAction extends Action {
       return "Invalid use of card";
     }
 
-    if (remainingActions < card.actionCost()) {
-      return "Not enough remaining ki for that action";
-    }
+    this.actions = card.actionCost();
+
     return card.validate(player, players, args);
   }
 
-  int perform(List<Card> deck, List<Card> discard, List<Player> players, Interface interface) {
-    var player = players[playerIndex];
+  void perform(List<Card> deck, List<Card> discard, List<Player> players, Interface interface) {
+    Player player = players[playerIndex];
     ActionCard card = player.hand[cardIndex];
-    card.perform(player, discard, players, interface, args);
+    card.perform(playerIndex, discard, players, interface, args);
     discard.add(player.hand.removeAt(cardIndex));
-    return card.actionCost();
   }
 }

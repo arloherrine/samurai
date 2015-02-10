@@ -4,6 +4,7 @@ library samurai;
 
 import 'dart:async';
 import "dart:math";
+import 'dart:collection';
 
 part 'cards.dart';
 part 'game.dart';

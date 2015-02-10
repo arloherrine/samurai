@@ -9,7 +9,9 @@ class Player {
   int honor = 0;
   bool isShogun = false;
 
-  Player();
+  final String name;
+
+  Player(this.name);
 
   int calculateHonorGain() {
     if (daimyo == null) {
@@ -61,6 +63,9 @@ class Player {
   }
 
   String validateSteal(House targetHouse, int cardIndex, int destination) {
+    if (cardIndex >= targetHouse.contents.length) {
+      return "out of range card index";
+    }
     Card card = targetHouse.contents[cardIndex];
     if (card is HouseGuard) {
       return "Can't steal house guard";
@@ -81,11 +86,4 @@ class Player {
         return null;
     }
   }
-
-  void doSteal(House targetHouse, int cardIndex, int destination, List<Card> discard) {
-    Card card = targetHouse.contents.removeAt(cardIndex);
-    List<Card> toPlace = [daimyo.contents, samurai.contents, discard][destination];
-    toPlace.add(card);
-  }
-
 }

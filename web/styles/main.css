@@ -7,3 +7,12 @@ html, body {
     padding: 0;
     font-family: 'Roboto', sans-serif;
 }
+
+.clear { clear: both; }
+
+#command_history {
+    overflow: auto;
+    height: 4em;
+    border-style: solid;
+    width: 50%;
+}

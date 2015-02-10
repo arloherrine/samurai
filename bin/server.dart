@@ -14,14 +14,14 @@ final Logger log = new Logger('SamuraiServer');
 
 class ServerInterface extends Interface {
 
-  List<WebSocket> sockets;
+  List<WebSocket> sockets = new List();
 
   List<Stream<String>> getCommandStreams() => sockets;
 
   void initRandomSeed() {
     int seed = new DateTime.now().millisecondsSinceEpoch;
     this.random = new Random(seed);
-    update("seed 0x" + seed.toRadixString(16));
+    update("-1 seed 0x" + seed.toRadixString(16));
   }
 
   void update(String command) {
@@ -29,26 +29,21 @@ class ServerInterface extends Interface {
   }
 
   void alert(int playerIndex, String msg) {
-    sockets[playerIndex].add('alert ' + msg);
+    sockets[playerIndex].add('-1 alert $msg');
   }
 
   void init() {
     for (int i = 0; i < sockets.length; i++) {
       sockets[i].listen((String command) {
-        if (i != playerIndex) {
+        if (this.closureQueue.isEmpty) {
           alert(i, "Please wait for your turn");
         } else {
-          switch (expectedCommand) {
-            case 'action':
-              doAction(command); break;
-            case 'dishonored':
-              doDishonorResponse(command); break;
-            case 'castle':
-              doTakeCastle(command); break;
-            case 'save':
-              doSaveFace(command); break;
-            default:
-              alert(i, "Unrecognized expected command?");
+          InterfaceCallback cb = this.closureQueue.removeFirst();
+          if (i != cb.playerIndex) {
+            alert(i, "Please wait for your turn");
+            this.closureQueue.addFirst(cb);
+          } else {
+            cb.closure(command);
           }
         }
       });
@@ -92,9 +87,10 @@ void main() {
           games[game] = new Game(new ServerInterface());
         }
         webSocket.handleError((error) => log.warning('Bad WebSocket request'));
-        games[game].players.add(new Player());
+        games[game].players.add(new Player('Player ' + games[game].players.length.toString()));
         games[game].interface.sockets.add(webSocket);
         if (games[game].players.length > 2) {
+          games[game].interface.init();
           games[game].play();
         }
       });

@@ -32,11 +32,11 @@ class Daimyo extends StatCard implements ActionCard {
       return "Invalid target index arg";
     }
     Player target = players[targetIndex];
-    if (player == target && player.daimyo != null) {
-      return "You can only have one daimyo!";
-    }
-    if (player.ally != target || target.daimyo != null) {
-      return "You can't play a daimyo on that player";
+
+    if (target.daimyo != null) {
+      return "A player can only have one daimyo!";
+    } else if (player.ally != target || target.daimyo != null) {
+        return "You can't play a daimyo on that player";
     }
     return null;
   }
@@ -122,7 +122,9 @@ class NinjaSpy extends ActionCard {
     Player target = players[targetIndex];
     House house = daimyo ? target.daimyo : target.samurai;
 
-    player.doSteal(house, cardIndex, destinationIndex, discard);
+    Card card = house.contents.removeAt(cardIndex);
+    List<Card> toPlace = [player.daimyo.contents, player.samurai.contents, discard][destinationIndex];
+    toPlace.add(card);
     player.honor -= NINJA_HONOR_LOSS;
   }
 }
@@ -201,8 +203,14 @@ class EliteNinjaSpy extends ActionCard {
     Player target = players[targetIndex];
     House house = daimyo ? target.daimyo : target.samurai;
 
-    player.doSteal(house, cardIndex1, destinationIndex1, discard);
-    player.doSteal(house, cardIndex2, destinationIndex2, discard);
+    Card card1 = house.contents[cardIndex1];
+    Card card2 = house.contents.removeAt(cardIndex2);
+    house.contents.remove(card1);
+
+    List<List<Card>> dests = [player.daimyo.contents, player.samurai.contents, discard];
+    dests[destinationIndex1].add(card1);
+    dests[destinationIndex2].add(card2);
+
     player.honor -= NINJA_HONOR_LOSS;
   }
 }
@@ -212,7 +220,7 @@ class NinjaAssassin extends ActionCard {
 
   String validate(Player player, List<Player> players, List<String> args) {
     if (args.length != 2) {
-      return "Elite Ninja spy takes target player, house, 2 card, and 2 desination args";
+      return "Ninja assassin takes target player and house args";
     }
     int targetIndex;
     try {
@@ -244,7 +252,7 @@ class NinjaAssassin extends ActionCard {
     bool daimyo = args[1] == 'daimyo';
     Player target = players[targetIndex];
     House house = daimyo ? target.daimyo : target.samurai;
-    HouseGuard guard = house.contents.firstWhere((card) => card is HouseGuard);
+    HouseGuard guard = house.contents.firstWhere((card) => card is HouseGuard, orElse: () => null);
     int killRoll;
     if (guard == null) {
       killRoll = 1;
@@ -260,7 +268,7 @@ class NinjaAssassin extends ActionCard {
     }
 
     if (interface.roll(playerIndex, 1).first > killRoll) {
-      target.killHouse(daimyo);
+      discard.addAll(target.killHouse(daimyo));
       if (!daimyo && player.ally == target) {
         player.ally = null;
         target.ally = null;
@@ -281,7 +289,7 @@ class Castle extends StatCard {
 class Dishonor extends ActionCard {
   static final int LOST_HONOR = 75;
   static final int SF_LOST_HONOR = 30;
-  Dishonor() : super("Disnohor");
+  Dishonor() : super("Dishonor");
 
   int actionCost() => 2;
 
@@ -303,19 +311,19 @@ class Dishonor extends ActionCard {
     Player target = players[targetIndex];
 
     SaveFace saveFaceCard = target.hand.firstWhere((c) => c is SaveFace, orElse:() => null);
-    interface.requestDishonorResponse(targetIndex, target.daimyo != null, saveFaceCard != null, (DishonorResponse resp) {
+    interface.requestDishonorResponse(targetIndex, target.daimyo != null, saveFaceCard != null, (String resp) {
       switch (resp) {
-        case DishonorResponse.SAVE_FACE:
+        case "SAVE_FACE":
           target.hand.remove(saveFaceCard);
           discard.add(saveFaceCard);
           target.honor -= LOST_HONOR;
           break;
-        case DishonorResponse.NOTHING:
+        case "NOTHING":
           target.honor -= SF_LOST_HONOR; break;
-        case DishonorResponse.DAIMYO_SEPUKU:
-          target.killHouse(true); break;
-        case DishonorResponse.SAMURAI_SEPUKU:
-          target.killHouse(false); break;
+        case "DAIMYO_SEPUKU":
+          discard.addAll(target.killHouse(true)); break;
+        case "SAMURAI_SEPUKU":
+          discard.addAll(target.killHouse(false)); break;
       }
     });
   }
@@ -357,7 +365,7 @@ List<Card> createDeck(List<Card> remainingDaimyos) {
 
   deck.add(new Castle("Odawara Castle", 5, 0, 3));
   deck.add(new Castle("Osaka Castle", 10, 1, 4));
-  deck.add(new Castle("Castle of the Great While Heron", 15, 2, 5));
+  deck.add(new Castle("Castle of the While Heron", 15, 2, 5)); // TODO *Great* While Heron, once card display can handle it
 
   deck.addAll(new Iterable.generate(5, (x) => new Dishonor()));
   deck.addAll(new Iterable.generate(17, (x) => new SaveFace()));
