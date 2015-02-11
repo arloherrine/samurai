@@ -145,10 +145,16 @@ class ClientInterface extends Interface {
     return new List.from(new Iterable.generate(3, (x) => webSocket)); // TODO get number of players from somewhere
   }
 
+  List<String> rolls = new List();
+
   void update(String command) {
     statusElement.innerHtml = '';
     Element history = querySelector('#command_history');
     history.appendHtml("$command<br />");
+    for (String roll in rolls) {
+      history.appendHtml("$roll<br />");
+    }
+    rolls.clear();
     history.scrollTop = history.scrollHeight;
     displayElement.draw();
   }
@@ -161,7 +167,7 @@ class ClientInterface extends Interface {
 
   Iterable<int> roll(int playerIndex, int dice) {
     Iterable<int> result = super.roll(playerIndex, dice);
-    update(result.map((x) => x.toString()).fold('$playerIndex roll ', (String a, b) => a + b));
+    rolls.add(result.map((x) => x.toString()).fold('$playerIndex roll ', (String a, b) => '$a $b'));
     return result;
   }
 
@@ -197,7 +203,7 @@ class RootDisplayElement extends GameDisplayElement {
 
   void draw() {
     element.children.clear(); // TODO update instead of full re-draw
-    if (!game.isAnyoneShogun) {
+    if (!game.players.any((p) => p.isShogun)) {
       element.appendText("Nobody is Shogun");
     }
 
@@ -274,17 +280,30 @@ class PlayerElement extends GameDisplayElement {
       infoDiv.appendText('Hand size: ${player.hand.length.toString()}');
     }
 
-    element.appendText('Daimyo House: ');
+    DivElement daimyoLabel = new DivElement();
+    element.append(daimyoLabel);
+    daimyoLabel.appendText('Daimyo House: ');
     element.append(daimyo.element);
     daimyo.draw();
+    DivElement clearDiv1 = new DivElement();
+    clearDiv1.classes.add("clear");
+    element.append(clearDiv1);
 
-    element.appendText('Samurai House: ');
+    DivElement samuraiLabel = new DivElement();
+    element.append(samuraiLabel);
+    samuraiLabel.appendText('Samurai House: ');
     element.append(samurai.element);
     samurai.draw();
+    DivElement clearDiv2 = new DivElement();
+    clearDiv2.classes.add("clear");
+    element.append(clearDiv2);
 
-    if (game.playerIndex() == playerIndex) {
+    bool isTurn = game.playerIndex() == playerIndex;
+    bool isActive = game.interface.closureQueue.first.playerIndex == playerIndex;
+
+    if (isTurn) {
       element.style.borderColor = 'green';
-      element.style.borderWidth = '6px';
+      element.style.borderWidth = isActive ? '6px' : '2px';
 
       DivElement activeDiv = new DivElement();
       element.append(activeDiv);
@@ -298,6 +317,9 @@ class PlayerElement extends GameDisplayElement {
       declarationSpan.style.padding = "5px";
       declarationSpan.appendText(game.hasMadeDeclaration ? 'Declaration done' : 'Declaration available');
       activeDiv.append(declarationSpan);
+    } else if (isActive) {
+      element.style.borderColor = 'orange';
+      element.style.borderWidth = '6px';
     } else {
       element.style.borderColor = 'gray';
       element.style.borderWidth = '2px';
@@ -319,6 +341,8 @@ class LocalPlayerElement extends PlayerElement {
     element.appendText('Hand: ');
 
     DivElement handDiv = new DivElement();
+    handDiv.style.height = '4em';
+
     element.append(handDiv);
     if (player.hand.isEmpty) {
       handDiv.appendText('<Empty>');
@@ -350,12 +374,16 @@ class HouseElement extends GameDisplayElement {
       return;
     }
 
+    DivElement cardsDiv = new DivElement();
+    element.style.height = '4em';
+    element.append(cardsDiv);
+
     CardElement head = new CardElement(house.head);
-    element.append(head.element);
+    cardsDiv.append(head.element);
     head.draw();
     for (Card c in house.contents) {
       CardElement card = new CardElement(c);
-      element.append(card.element);
+      cardsDiv.append(card.element);
       card.draw();
     }
     DivElement clearDiv = new DivElement();

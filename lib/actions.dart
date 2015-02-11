@@ -116,18 +116,19 @@ class AttackDeclaration extends Declaration {
       SaveFace saveFaceCard = players[loserIndex].hand.firstWhere((c) => c is SaveFace, orElse:() => null);
       if (saveFaceCard == null) {
         discard.addAll(loser.killHouse(true));
+      } else {
+        interface.requestSaveFace(loserIndex, (bool saved) {
+          if (saved) {
+            players[loserIndex].hand.remove(saveFaceCard);
+            discard.add(saveFaceCard);
+          } else {
+            discard.addAll(loser.killHouse(true));
+          }
+        });
       }
-      interface.requestSaveFace(loserIndex, (bool saved) {
-        if (saved) {
-          players[loserIndex].hand.remove(saveFaceCard);
-          discard.add(saveFaceCard);
-        } else {
-          discard.addAll(loser.killHouse(true));
-        }
-      });
     }
 
-    winner.isShogun = loser.isShogun;
+    winner.isShogun = winner.isShogun || loser.isShogun;
     loser.isShogun = false;
   }
 }

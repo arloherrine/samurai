@@ -35,7 +35,7 @@ class Daimyo extends StatCard implements ActionCard {
 
     if (target.daimyo != null) {
       return "A player can only have one daimyo!";
-    } else if (player.ally != target || target.daimyo != null) {
+    } else if (target != player.ally && target != player) {
         return "You can't play a daimyo on that player";
     }
     return null;
@@ -316,10 +316,10 @@ class Dishonor extends ActionCard {
         case "SAVE_FACE":
           target.hand.remove(saveFaceCard);
           discard.add(saveFaceCard);
-          target.honor -= LOST_HONOR;
+          target.honor -= SF_LOST_HONOR;
           break;
         case "NOTHING":
-          target.honor -= SF_LOST_HONOR; break;
+          target.honor -= LOST_HONOR; break;
         case "DAIMYO_SEPUKU":
           discard.addAll(target.killHouse(true)); break;
         case "SAMURAI_SEPUKU":

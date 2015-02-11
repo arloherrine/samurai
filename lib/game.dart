@@ -11,7 +11,6 @@ class Game {
   int currentTurn = 0;
   int currentActions = 0;
   bool hasMadeDeclaration = false;
-  bool isAnyoneShogun = false;
   List<Card> deck;
   List<Card> discard = new List();
 
@@ -25,7 +24,7 @@ class Game {
       player.honor += SHOGUN_HONOR[players.length];
     }
     if (player.honor >= WINNING_HONOR) {
-      interface.update("win " + (currentTurn % players.length).toString());
+      interface.update("-1 win " + (currentTurn % players.length).toString());
       return;
     }
     scheduleAction();
@@ -37,9 +36,16 @@ class Game {
 
   int playerIndex() => currentTurn % players.length;
 
-  int remainingActions() => currentActions < 5
-      ? (players[playerIndex()].getKi() ~/ 3) - currentActions
-      : 0;
+  int remainingActions() {
+    int actions = 0;
+    if (currentActions < 5) {
+      actions = (players[playerIndex()].getKi() ~/ 3) - currentActions;
+      if (actions < 0) {
+        actions = 0;
+      }
+    }
+    return actions;
+  }
 
   void executeAction(Action action) {
     action.perform(deck, discard, players, interface);
