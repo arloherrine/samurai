@@ -1,4 +1,4 @@
-part of samurai;
+part of bushido;
 
 final int WINNING_HONOR = 400;
 final List<int> SHOGUN_HONOR = [0, 10, 30, 60, 100, 150];

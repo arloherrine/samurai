@@ -1,4 +1,4 @@
-part of samurai;
+part of bushido;
 
 
 abstract class Card {

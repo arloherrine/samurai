@@ -1,13 +1,12 @@
-library dartiverse_search;
-
 import 'dart:io';
 import 'dart:async';
-
-import 'package:http_server/http_server.dart' as http_server;
-import 'package:route/server.dart' show Router;
-import 'package:logging/logging.dart' show Logger, Level, LogRecord;
-import 'package:samurai/main.dart';
 import 'dart:math';
+
+//import 'package:http_server/http_server.dart' as http_server;
+//import 'package:route/server.dart' show Router;
+import 'package:logging/logging.dart' show Logger, Level, LogRecord;
+import 'package:bushido/main.dart';
+import 'package:appengine/appengine.dart';
 
 
 final Logger log = new Logger('SamuraiServer');
@@ -54,8 +53,56 @@ class ServerInterface extends Interface {
 
 Map<String, Game> games = new Map();
 
-
 void main() {
+  File logFile = new File('/var/log/app_engine/custom_logs/bushido.log');
+  var sink = logFile.openWrite();
+  Logger.root.level = Level.ALL;
+  Logger.root.onRecord.listen((LogRecord rec) {
+    sink.write('${rec.level.name}: ${rec.time}: ${rec.message}');
+    sink.flush();
+  });
+
+  runAppEngine(requestHandler);
+}
+
+void requestHandler(HttpRequest request) {
+  if (request.method == 'GET') {
+    handleGetRequest(request);
+  } else {
+    request.response
+      ..statusCode = HttpStatus.METHOD_NOT_ALLOWED
+      ..write('Unsupported HTTP request method: ${request.method}.')
+      ..close();
+  }
+}
+
+handleGetRequest(HttpRequest request) {
+  HttpResponse response = request.response;
+  if (request.uri.path == '/ws') {
+    String game = request.uri.queryParameters['game'];
+//      String player = request.uri.queryParameters['name'];
+
+    WebSocketTransformer.upgrade(request).then((WebSocket webSocket) {
+      if (!games.containsKey(game)) {
+        games[game] = new Game(new ServerInterface());
+      }
+      webSocket.handleError((error) => log.warning('Bad WebSocket request'));
+      games[game].players.add(new Player('Player ' + games[game].players.length.toString()));
+      games[game].interface.sockets.add(webSocket);
+      if (games[game].players.length > 2) {
+        games[game].interface.init();
+        games[game].play();
+      }
+    });
+  } else if (request.uri.path == '/') {
+    request.response.redirect(Uri.parse('/index.html'));
+  } else {
+    context.assets.serve();
+  }
+}
+
+/*
+void main_old() {
   // Set up logger.
   Logger.root.level = Level.ALL;
   Logger.root.onRecord.listen((LogRecord rec) {
@@ -67,6 +114,7 @@ void main() {
     log.severe("The 'build/' directory was not found. Please run 'pub build'.");
     return;
   }
+
 
   int port = 9223;  // TODO use args from command line to set this
 
@@ -126,3 +174,4 @@ void main() {
     });
   });
 }
+*/

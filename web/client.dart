@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:html';
-import 'package:samurai/main.dart';
+import 'package:bushido/main.dart';
 import 'dart:math';
 
 

@@ -1,0 +1,4 @@
+version: bushido
+runtime: custom
+vm: true
+api_version: 1
