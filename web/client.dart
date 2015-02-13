@@ -14,6 +14,8 @@ class Client {
   DivElement contentElement = querySelector('#content');
   DivElement statusElement = querySelector('#status');
 
+  bool connected = false;
+
   ClientInterface interface;
   Game game;
 
@@ -22,44 +24,36 @@ class Client {
   }
 
   void connect(Event e) {
-    String gameId = querySelector('#gameId').value;
-    String rawPlayerIndex = querySelector('#playerId').value;
-    int playerIndex;
-    try {
-      playerIndex = int.parse(rawPlayerIndex);
-    } on FormatException {
-      setStatus("Invalid Player index");
-      return;
-    }
-    querySelector('#start_button')..disabled = true
-                                  ..text = 'Connected';
-    connectPending = false;
-    webSocket = new WebSocket('ws://${Uri.base.host}:${Uri.base.port}/ws?game=${gameId}');
-    interface = new ClientInterface(playerIndex, webSocket);
-    game = new Game(interface);
+    if (connected) {
+      webSocket.send("start");
+    } else {
+      connected = true;
+      String gameId = querySelector('#gameId').value;
+      String playerName = querySelector('#playerName').value;
+      querySelector('#start_button').text = 'Start Game';
+      connectPending = false;
+      webSocket = new WebSocket('ws://${Uri.base.host}:${Uri.base.port}/ws?game=${gameId}&name=$playerName');
+      interface = new ClientInterface(playerName, webSocket);
+      game = new Game(interface);
+      interface.game = game;
 
-    // TODO do this properly
-    game.players.add(new Player("Player 0"));
-    game.players.add(new Player("Player 1"));
-    game.players.add(new Player("Player 2"));
-
-    interface.game = game;
-    webSocket.onOpen.first.then((_) {
-      onConnected();
-      webSocket.onClose.first.then((_) {
-        print("Connection disconnected to ${webSocket.url}.");
+      webSocket.onOpen.first.then((_) {
+        onConnected();
+        webSocket.onClose.first.then((_) {
+          print("Connection disconnected to ${webSocket.url}.");
+          onDisconnected();
+        });
+      });
+      webSocket.onError.first.then((_) {
+        print("Failed to connect to ${webSocket.url}. "
+        "Run bin/server.dart and try again.");
         onDisconnected();
       });
-    });
-    webSocket.onError.first.then((_) {
-      print("Failed to connect to ${webSocket.url}. "
-      "Run bin/server.dart and try again.");
-      onDisconnected();
-    });
+    }
   }
 
   void onConnected() {
-    setStatus('');
+    setStatus('Connected');
 //    webSocket.onMessage.listen((e) {
 //      handleMessage(e.data);
 //    });
@@ -80,7 +74,8 @@ class Client {
 class ClientInterface extends Interface {
 
   final WebSocket webSocket;
-  final int localPlayer;
+  final String localPlayerName;
+  int localPlayer;
 
   DivElement contentElement = querySelector('#content');
   DivElement statusElement = querySelector('#status');
@@ -88,13 +83,29 @@ class ClientInterface extends Interface {
   Game game;
   RootDisplayElement displayElement;
 
-  ClientInterface(this.localPlayer, this.webSocket) {
+  String startCommand;
+
+  ClientInterface(this.localPlayerName, this.webSocket) {
     webSocket.onMessage.listen((e) {
       String command = e.data;
       List<String> tokens = command.split(" ");
       switch (tokens[1]) {
-        case 'seed':
-          setSeed(command); break;
+        case 'start':
+          startCommand = command;
+          game.play();
+
+          displayElement = new RootDisplayElement(game, localPlayer);
+          contentElement.append(displayElement.element);
+
+          querySelector('#connection_div').hidden = true;
+          querySelector('#command_div').hidden = false;
+          querySelector('#command_button').onClick.listen((e) {
+            String command = querySelector('#command_input').value;
+            webSocket.send(command);
+          });
+
+          displayElement.draw();
+          break;
         case 'alert':
           alert(localPlayer, command); break;
         default:
@@ -105,44 +116,37 @@ class ClientInterface extends Interface {
 
   Map<String, Function> _commandDoers;
 
-  void setSeed(String command) {
-    List<String> tokens = command.split(" ");
-    if (tokens.length < 2) {
-      alert(localPlayer, "Not enough arguments: " + command);
+  void gameStart() {
+    List<String> tokens = startCommand.split(" ");
+    if (tokens.length < 3) {
+      alert(-1, "Not enough arguments: " + startCommand);
       return;
     }
     if (tokens[0] != "-1") {
-      alert(localPlayer, "Invalid seed command: " + command);
+      alert(-1, "Invalid start command: " + startCommand);
       return;
     }
-    if (tokens[1] != "seed") {
-      alert(localPlayer, "Expecting seed command but received: " + command);
+    if (tokens[1] != "start") {
+      alert(-1, "Expecting start command but received: " + startCommand);
       return;
     }
     try {
       int seed = int.parse(tokens[2]);
       this.random = new Random(seed);
     } on FormatException {
-      alert(localPlayer, "seed must be int: " + command);
+      alert(-1, "seed must be int: " + startCommand);
     }
-    displayElement = new RootDisplayElement(game, localPlayer);
-    contentElement.append(displayElement.element);
-    game.play();
 
-    querySelector('#connection_div').hidden = true;
-    querySelector('#command_div').hidden = false;
-    querySelector('#command_button').onClick.listen((e) {
-      String command = querySelector('#command_input').value;
-      webSocket.send(command);
-    });
-
-    displayElement.draw();
+    for (String name in tokens.getRange(3, tokens.length)) {
+      if (name == localPlayerName) {
+        localPlayer = game.players.length;
+      }
+      game.players.add(new Player(name));
+    }
   }
 
-  void initRandomSeed() {}
-
   List<Stream<String>> getCommandStreams() {
-    return new List.from(new Iterable.generate(3, (x) => webSocket)); // TODO get number of players from somewhere
+    return new List.from(new Iterable.generate(game.players.length, (x) => webSocket));
   }
 
   List<String> rolls = new List();

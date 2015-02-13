@@ -313,7 +313,7 @@ abstract class Interface {
 
   Random random;
 
-  void initRandomSeed();
+  void gameStart();
 
   Iterable<int> roll(int playerIndex, int dice) => new List.from(new Iterable.generate(dice, (x) => random.nextInt(6) + 1));
 

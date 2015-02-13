@@ -14,14 +14,46 @@ final Logger log = new Logger('SamuraiServer');
 
 class ServerInterface extends Interface {
 
+  final String gameId;
+
+  ServerInterface(this.gameId);
+
+  Map<String, int> playerNameMap = new Map();
+  List<String> playerNameList = new List();
   List<WebSocket> sockets = new List();
+  bool gameStarted = false;
 
   List<Stream<String>> getCommandStreams() => sockets;
 
-  void initRandomSeed() {
+  bool addPlayer(String name, WebSocket ws) {
+    if (playerNameMap.containsKey(name)) {
+      if (sockets[playerNameMap[name]] == null) {
+        sockets[playerNameMap[name]] = ws;
+        setupSocket(playerNameMap[name]);
+        return true;
+      } else {
+        return false;
+      }
+    } else if (!gameStarted) {
+      playerNameMap[name] = playerNameList.length;
+      playerNameList.add(name);
+      sockets.add(ws);
+      setupSocket(playerNameMap[name]);
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  void gameStart() {
     int seed = new DateTime.now().millisecondsSinceEpoch;
     this.random = new Random(seed);
-    update("-1 seed 0x" + seed.toRadixString(16));
+    gameStarted = true;
+    String startCommand = "-1 start 0x${seed.toRadixString(16)}";
+    for (int i = 0; i < sockets.length; i++) {
+      startCommand += ' ${playerNameList[i]}';
+    }
+    update(startCommand);
   }
 
   void update(String command) {
@@ -32,9 +64,19 @@ class ServerInterface extends Interface {
     sockets[playerIndex].add('-1 alert $msg');
   }
 
-  void init() {
-    for (int i = 0; i < sockets.length; i++) {
-      sockets[i].listen((String command) {
+  void setupSocket(int i) {
+    sockets[i].listen((String command) {
+      if (!gameStarted) {
+        if (command == 'start') {
+          if (sockets.length < 3) {
+            alert(i, "Need at least 3 players, but only have ${sockets.length}");
+          } else {
+            games[gameId].play();
+          }
+        } else {
+          alert(i, "Game not yet started");
+        }
+      } else {
         if (this.closureQueue.isEmpty) {
           alert(i, "Please wait for your turn");
         } else {
@@ -46,14 +88,25 @@ class ServerInterface extends Interface {
             cb.closure(command);
           }
         }
-      });
-    }
+      }
+    },
+    onDone: () {
+      if (!gameStarted) {
+        sockets.removeAt(i);
+        String name = playerNameList.removeAt(i);
+        playerNameMap.remove(name);
+      } else {
+        sockets[i] = null;
+      }
+      if (sockets.isEmpty || sockets.every((s) => s == null)) {
+        games.remove(gameId);
+      }
+    });
   }
 
 }
 
 Map<String, Game> games = new Map();
-
 
 void main() {
   // Set up logger.
@@ -80,19 +133,15 @@ void main() {
     router.serve('/ws')
     .listen((HttpRequest request) {
       String game = request.uri.queryParameters['game'];
-//      String player = request.uri.queryParameters['name'];
+      String player = request.uri.queryParameters['name'];
 
       WebSocketTransformer.upgrade(request).then((WebSocket webSocket) {
         if (!games.containsKey(game)) {
-          games[game] = new Game(new ServerInterface());
+          games[game] = new Game(new ServerInterface(game));
         }
         webSocket.handleError((error) => log.warning('Bad WebSocket request'));
-        games[game].players.add(new Player('Player ' + games[game].players.length.toString()));
-        games[game].interface.sockets.add(webSocket);
-        if (games[game].players.length > 2) {
-          games[game].interface.init();
-          games[game].play();
-        }
+        games[game].players.add(new Player(player));
+        (games[game].interface as ServerInterface).addPlayer(player, webSocket);
       });
     });
 

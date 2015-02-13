@@ -72,7 +72,7 @@ class Game {
 
 
   void play() {
-    interface.initRandomSeed();
+    interface.gameStart();
     List<Card> daimyos = createDaimyos();
     for (Player player in players) {
       player.daimyo = new House.daimyo(daimyos.removeAt(interface.random.nextInt(daimyos.length)));
