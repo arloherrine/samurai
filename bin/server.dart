@@ -1,4 +1,4 @@
-library dartiverse_search;
+library samurai_server;
 
 import 'dart:io';
 import 'dart:async';
@@ -8,103 +8,14 @@ import 'package:route/server.dart' show Router;
 import 'package:logging/logging.dart' show Logger, Level, LogRecord;
 import 'package:samurai/main.dart';
 import 'dart:math';
+import 'dart:mirrors';
+
+part "server_interface.dart";
+part "ai.dart";
 
 
 final Logger log = new Logger('SamuraiServer');
 
-class ServerInterface extends Interface {
-
-  final String gameId;
-
-  ServerInterface(this.gameId);
-
-  Map<String, int> playerNameMap = new Map();
-  List<String> playerNameList = new List();
-  List<WebSocket> sockets = new List();
-  bool gameStarted = false;
-
-  List<Stream<String>> getCommandStreams() => sockets;
-
-  bool addPlayer(String name, WebSocket ws) {
-    if (playerNameMap.containsKey(name)) {
-      if (sockets[playerNameMap[name]] == null) {
-        sockets[playerNameMap[name]] = ws;
-        setupSocket(playerNameMap[name]);
-        return true;
-      } else {
-        return false;
-      }
-    } else if (!gameStarted) {
-      playerNameMap[name] = playerNameList.length;
-      playerNameList.add(name);
-      sockets.add(ws);
-      setupSocket(playerNameMap[name]);
-      return true;
-    } else {
-      return false;
-    }
-  }
-
-  void gameStart() {
-    int seed = new DateTime.now().millisecondsSinceEpoch;
-    this.random = new Random(seed);
-    gameStarted = true;
-    String startCommand = "-1 start 0x${seed.toRadixString(16)}";
-    for (int i = 0; i < sockets.length; i++) {
-      startCommand += ' ${playerNameList[i]}';
-    }
-    update(startCommand);
-  }
-
-  void update(String command) {
-    sockets.forEach((socket) => socket.add(command));
-  }
-
-  void alert(int playerIndex, String msg) {
-    sockets[playerIndex].add('-1 alert $msg');
-  }
-
-  void setupSocket(int i) {
-    sockets[i].listen((String command) {
-      if (!gameStarted) {
-        if (command == 'start') {
-          if (sockets.length < 3) {
-            alert(i, "Need at least 3 players, but only have ${sockets.length}");
-          } else {
-            games[gameId].play();
-          }
-        } else {
-          alert(i, "Game not yet started");
-        }
-      } else {
-        if (this.closureQueue.isEmpty) {
-          alert(i, "Please wait for your turn");
-        } else {
-          InterfaceCallback cb = this.closureQueue.removeFirst();
-          if (i != cb.playerIndex) {
-            alert(i, "Please wait for your turn");
-            this.closureQueue.addFirst(cb);
-          } else {
-            cb.closure(command);
-          }
-        }
-      }
-    },
-    onDone: () {
-      if (!gameStarted) {
-        sockets.removeAt(i);
-        String name = playerNameList.removeAt(i);
-        playerNameMap.remove(name);
-      } else {
-        sockets[i] = null;
-      }
-      if (sockets.isEmpty || sockets.every((s) => s == null)) {
-        games.remove(gameId);
-      }
-    });
-  }
-
-}
 
 Map<String, Game> games = new Map();
 

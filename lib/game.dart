@@ -16,6 +16,22 @@ class Game {
 
   Game(this.interface);
 
+  Game.from(Game other, this.interface) {
+    Completer<Map<String, Player>> c = new Completer();
+    players.addAll(other.players.map((p) => new Player.from(p, c.future)));
+    Map<String, Player> map = new Map();
+    for (Player p in players) {
+      map[p.name] = p;
+    }
+    c.complete(map);
+
+    currentTurn = other.currentTurn;
+    currentActions = other.currentActions;
+    hasMadeDeclaration = other.hasMadeDeclaration;
+    deck = new List.from(other.deck);
+    discard.addAll(other.discard);
+}
+
   void doTurn() {
     Player player = players[currentTurn % players.length];
 
@@ -70,12 +86,11 @@ class Game {
     }
   }
 
-
   void play() {
     interface.gameStart();
-    List<Card> daimyos = createDaimyos();
+    List<Daimyo> daimyos = createDaimyos();
     for (Player player in players) {
-      player.daimyo = new House.daimyo(daimyos.removeAt(interface.random.nextInt(daimyos.length)));
+      player.daimyo = new DaimyoHouse(daimyos.removeAt(interface.random.nextInt(daimyos.length)));
     }
 
     deck = createDeck(daimyos);

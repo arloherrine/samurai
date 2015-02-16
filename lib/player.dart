@@ -2,16 +2,28 @@ part of samurai;
 
 class Player {
 
-  final List<Card> hand = new List();
-  House daimyo = null;
-  final House samurai = new House.samurai();
+  final List<Card> hand;
+  DaimyoHouse daimyo = null;
+  final SamuraiHouse samurai;
   Player ally;
   int honor = 0;
   bool isShogun = false;
 
   final String name;
 
-  Player(this.name);
+  Player(this.name)
+      : hand = new List(),
+        samurai = new SamuraiHouse();
+
+  Player.from(Player other, Future<Map<String, Player>> playerCopyMapFuture)
+      : name = other.name,
+        hand = new List.from(other.hand),
+        samurai = new SamuraiHouse.from(other.samurai) {
+    daimyo = new DaimyoHouse.from(other.daimyo);
+    honor = other.honor;
+    isShogun = other.isShogun;
+    playerCopyMapFuture.then((m) => ally = m[other.ally.name]);
+  }
 
   int calculateHonorGain() {
     if (daimyo == null) {
@@ -33,12 +45,19 @@ class Player {
     }
   }
 
-  int getStrength() {
-    if (ally != null) {
-      return daimyo.getStrength() + samurai.getStrength() + ally.samurai.getStrength();
-    } else {
-      return daimyo.getStrength() + samurai.getStrength();
+  int getStrength(bool attacking) {
+    int strength = samurai.getStrength();
+    if (daimyo != null) {
+      strength += daimyo.getStrength(attacking);
+      if (ally != null) {
+        strength += ally.samurai.getStrength();
+      }
     }
+    return strength;
+  }
+
+  int getAttackStrength() {
+
   }
 
   List<Card> killHouse(bool isDaimyo) {

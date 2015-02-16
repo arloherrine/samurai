@@ -45,18 +45,26 @@ class Daimyo extends StatCard implements ActionCard {
     Player player = players[playerIndex];
     Player target = players[int.parse(args[0])];
     if (player == target && player.daimyo == null) {
-      player.daimyo = new House.daimyo(this);
+      player.daimyo = new DaimyoHouse(this);
     } else if (player.ally == target && target.daimyo == null) {
-      target.daimyo = new House.daimyo(this);
+      target.daimyo = new DaimyoHouse(this);
       target.ally = null;
       player.ally = null;
     }
   }
 }
 
-class Okugata extends StatCard {
+abstract class Okugata extends StatCard {
   Okugata(int honor, int ki) : super ("Okugata", honor, ki, 0);
   bool isNinjaProof() => true;
+}
+
+class Okugata5 extends Okugata {
+  Okugata5() : super (5, 4);
+}
+
+class Okugata10 extends Okugata {
+  Okugata10() : super (10, 3);
 }
 
 abstract class ActionCard extends Card {
@@ -281,9 +289,22 @@ class HouseGuard extends Card {
   HouseGuard() : super("House Guard");
 }
 
-class Castle extends StatCard {
+abstract class Castle extends StatCard {
   Castle(String name, int honor, int ki, int strength) : super (name, honor, ki, strength);
   bool isNinjaProof() => true;
+}
+
+class OdawaraCastle extends Castle {
+  OdawaraCastle() : super("Odawara Castle", 5, 0, 3);
+}
+
+class OsakaCastle extends Castle {
+  OsakaCastle() : super("Osaka Castle", 10, 1, 4);
+}
+
+class HeronCastle extends Castle {
+  // TODO *Great* While Heron, once card display can handle it
+  HeronCastle() : super("Castle of the While Heron", 15, 2, 5);
 }
 
 class Dishonor extends ActionCard {
@@ -333,9 +354,46 @@ class SaveFace extends Card {
   SaveFace() : super("Save Face");
 }
 
-class Army extends StatCard {
-  Army(int ki, int strength) : super ("Army", 0, ki, strength);
+class NoDachi extends StatCard {
+  NoDachi() : super("Ancestor's No-Dachi", 5, 1, 3);
 }
+
+class Daisho extends StatCard {
+  Daisho() : super("Ancestor's Daisho", 10, 1, 1);
+}
+
+class Masamune extends StatCard {
+  Masamune() : super("Swordsmith Masamune", 10, 1, 4);
+}
+
+class NohTheater extends StatCard {
+  NohTheater() : super("Noh Theater", 20, 3, 0);
+}
+
+class GunpowderWeapons extends StatCard {
+  GunpowderWeapons() : super("Gunpowder Weapons", -20, -2, 6);
+}
+
+abstract class Army extends StatCard {
+  Army(String name, int ki, int strength) : super (name, 0, ki, strength);
+}
+
+class Army1 extends Army {
+  Army1() : super("Army", 0, 1);
+}
+
+class Army2 extends Army {
+  Army2() : super("Army", 0, 2);
+}
+
+class Army3 extends Army {
+  Army3() : super("Army", 0, 3);
+}
+
+class WarriorMonkArmy extends Army {
+  WarriorMonkArmy() : super("Warrior Monk Army", 1, 1);
+}
+
 
 List<Daimyo> createDaimyos() {
   return [
@@ -352,34 +410,34 @@ List<Daimyo> createDaimyos() {
   ];
 }
 
-List<Card> createDeck(List<Card> remainingDaimyos) {
+List<Card> createDeck(List<Daimyo> remainingDaimyos) {
   List<Card> deck = new List();
   deck.addAll(remainingDaimyos);
 
-  deck.addAll(new Iterable.generate(5, (x) => new Okugata(10, 3)));
-  deck.addAll(new Iterable.generate(5, (x) => new Okugata(5, 4)));
+  deck.addAll(new Iterable.generate(5, (x) => new Okugata10()));
+  deck.addAll(new Iterable.generate(5, (x) => new Okugata5()));
 
   deck.addAll(new Iterable.generate(8, (x) => new NinjaSpy()));
   deck.addAll(new Iterable.generate(3, (x) => new EliteNinjaSpy()));
   deck.addAll(new Iterable.generate(5, (x) => new NinjaAssassin()));
 
-  deck.add(new Castle("Odawara Castle", 5, 0, 3));
-  deck.add(new Castle("Osaka Castle", 10, 1, 4));
-  deck.add(new Castle("Castle of the While Heron", 15, 2, 5)); // TODO *Great* While Heron, once card display can handle it
+  deck.add(new OdawaraCastle());
+  deck.add(new OsakaCastle());
+  deck.add(new HeronCastle());
 
   deck.addAll(new Iterable.generate(5, (x) => new Dishonor()));
   deck.addAll(new Iterable.generate(17, (x) => new SaveFace()));
 
-  deck.addAll(new Iterable.generate(12, (x) => new Army(0, 1)));
-  deck.addAll(new Iterable.generate(8, (x) => new Army(0, 2)));
-  deck.addAll(new Iterable.generate(4, (x) => new Army(0, 3)));
-  deck.addAll(new Iterable.generate(8, (x) => new Army(1, 1)));
+  deck.addAll(new Iterable.generate(12, (x) => new Army1()));
+  deck.addAll(new Iterable.generate(8, (x) => new Army2()));
+  deck.addAll(new Iterable.generate(4, (x) => new Army3()));
+  deck.addAll(new Iterable.generate(8, (x) => new WarriorMonkArmy()));
 
-  deck.add(new StatCard("Ancestor's No-Dachi", 5, 1, 3));
-  deck.add(new StatCard("Ancestor's Daisho", 10, 1, 1));
-  deck.add(new StatCard("Swordsmith Masamune", 10, 1, 4));
-  deck.add(new StatCard("Gunpowder Weapons", -20, -2, 6));
-  deck.add(new StatCard("Noh Theater", 20, 3, 0));
+  deck.add(new NoDachi());
+  deck.add(new Daisho());
+  deck.add(new Masamune());
+  deck.add(new GunpowderWeapons());
+  deck.add(new NohTheater());
 
   return deck;
 }

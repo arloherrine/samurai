@@ -61,6 +61,10 @@ class AttackDeclaration extends Declaration {
   AttackDeclaration(int playerIndex, this.targetIndex) : super(playerIndex);
 
   String validateImpl(players) {
+    if (playerIndex == targetIndex) {
+      return "You can't attack yourself";
+    }
+
     Player player = players[playerIndex];
     Player target = players[targetIndex];
 
@@ -77,7 +81,7 @@ class AttackDeclaration extends Declaration {
   void performDeclaration(List<Card> deck, List<Card> discard, List<Player> players, Interface interface) {
     int result;
     do {
-      result = roll(playerIndex, players, interface) - roll(targetIndex, players, interface);
+      result = roll(playerIndex, players, true, interface) - roll(targetIndex, players, false, interface);
       if (result > 0) {
         endBattle(playerIndex, targetIndex, players, discard, interface);
       } else if (result < 0) {
@@ -86,8 +90,8 @@ class AttackDeclaration extends Declaration {
     } while (result == 0);
   }
 
-  static int roll(int playerIndex, List<Player> players, Interface interface) =>
-      interface.roll(playerIndex, players[playerIndex].getStrength() ~/ 3).fold(0, (a,b) => a+b);
+  static int roll(int playerIndex, List<Player> players, bool attacking, Interface interface) =>
+      interface.roll(playerIndex, players[playerIndex].getStrength(attacking) ~/ 3).fold(0, (a,b) => a+b);
 
   void endBattle(int winnerIndex, int loserIndex, List<Player> players, List<Card> discard, Interface interface) {
     Player winner = players[winnerIndex];

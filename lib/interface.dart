@@ -11,10 +11,10 @@ abstract class Interface {
   Queue<InterfaceCallback> closureQueue = new Queue();
 
   void requestAction(int playerIndex, List<Player> players, int remainingActions, bool hasMadeDeclaration, Function callback) =>
-      _startCallback(playerIndex, callback, (c) => doAction(playerIndex, players, remainingActions, hasMadeDeclaration, callback, c), false);
+      _startCallback(playerIndex, (c) => doAction(playerIndex, players, remainingActions, hasMadeDeclaration, callback, c), false);
 
   void retryAction(int playerIndex, List<Player> players, int remainingActions, bool hasMadeDeclaration, Function callback) =>
-      _startCallback(playerIndex, callback, (c) => doAction(playerIndex, players, remainingActions, hasMadeDeclaration, callback, c), true);
+      _startCallback(playerIndex, (c) => doAction(playerIndex, players, remainingActions, hasMadeDeclaration, callback, c), true);
 
   void doAction(int playerIndex, List<Player> players, int remainingActions, bool hasMadeDeclaration, Function callback, String command) {
     List<String> tokens = command.split(" ");
@@ -136,10 +136,10 @@ abstract class Interface {
   }
 
   void requestDishonorResponse(int playerIndex, bool hasDaimyo, bool hasSaveFace, Function callback) =>
-      _startCallback(playerIndex, callback, (c) => doDishonorResponse(playerIndex, hasDaimyo, hasSaveFace, callback, c), false);
+      _startCallback(playerIndex, (c) => doDishonorResponse(playerIndex, hasDaimyo, hasSaveFace, callback, c), false);
 
   void retryDishonorResponse(int playerIndex, bool hasDaimyo, bool hasSaveFace, Function callback) =>
-      _startCallback(playerIndex, callback, (c) => doDishonorResponse(playerIndex, hasDaimyo, hasSaveFace, callback, c), true);
+      _startCallback(playerIndex, (c) => doDishonorResponse(playerIndex, hasDaimyo, hasSaveFace, callback, c), true);
 
   void doDishonorResponse(int playerIndex, bool hasDaimyo, bool hasSaveFace, Function callback, String command) {
     List<String> tokens = command.split(" ");
@@ -209,12 +209,12 @@ abstract class Interface {
   }
 
   void requestTakeCastle(int playerIndex, Function callback) =>
-      _startCallback(playerIndex, callback, (c) => doTakeCastle(playerIndex, callback, c), false);
+      _startCallback(playerIndex, (c) => doTakeCastle(playerIndex, callback, c), false);
 
   void retryTakeCastle(int playerIndex, Function callback) =>
-      _startCallback(playerIndex, callback, (c) => doTakeCastle(playerIndex, callback, c), true);
+      _startCallback(playerIndex, (c) => doTakeCastle(playerIndex, callback, c), true);
 
-  void _startCallback(int playerIndex, Function callback, Function validationCb, bool first) {
+  void _startCallback(int playerIndex, Function validationCb, bool first) {
     InterfaceCallback cb = new InterfaceCallback(playerIndex, validationCb);
     if (first) {
       this.closureQueue.addFirst(cb);
@@ -265,10 +265,10 @@ abstract class Interface {
   }
 
   void requestSaveFace(int playerIndex, Function callback) =>
-      _startCallback(playerIndex, callback, (c) => doSaveFace(playerIndex, callback, c), false);
+      _startCallback(playerIndex, (c) => doSaveFace(playerIndex, callback, c), false);
 
   void retrySaveFace(int playerIndex, Function callback) =>
-      _startCallback(playerIndex, callback, (c) => doSaveFace(playerIndex, callback, c), true);
+      _startCallback(playerIndex, (c) => doSaveFace(playerIndex, callback, c), true);
 
   void doSaveFace(int playerIndex, Function callback, String command) {
     List<String> tokens = command.split(" ");
