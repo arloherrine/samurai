@@ -4,5 +4,6 @@
 samurai.iml
 .pub/
 build/
+.packages
 packages
 pubspec.lock

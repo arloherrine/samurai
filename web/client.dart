@@ -7,7 +7,7 @@ import 'dart:math';
 class Client {
   static const Duration RECONNECT_DELAY = const Duration(milliseconds: 500);
 
-  bool connectPending = false;
+  bool reconnectPending = false;
   String mostRecentSearch = null;
   WebSocket webSocket;
   final DivElement log = new DivElement();
@@ -23,7 +23,7 @@ class Client {
     querySelector('#start_button').onClick.listen(connect);
   }
 
-  void connect(Event e) {
+  void connect([Event e]) {
     if (connected) {
       webSocket.send("start");
     } else {
@@ -31,8 +31,8 @@ class Client {
       String gameId = querySelector('#gameId').value;
       String playerName = querySelector('#playerName').value;
       querySelector('#start_button').text = 'Start Game';
-      connectPending = false;
-      webSocket = new WebSocket('ws://${Uri.base.host}:${Uri.base.port}/ws?game=${gameId}&name=$playerName');
+      reconnectPending = false;
+      webSocket = new WebSocket('ws://${Uri.base.host}:9223/ws?game=${gameId}&name=$playerName');
       interface = new ClientInterface(playerName, webSocket);
       game = new Game(interface);
       interface.game = game;
@@ -60,8 +60,9 @@ class Client {
   }
 
   void onDisconnected() {
-    if (connectPending) return;
-    connectPending = true;
+    if (reconnectPending) return;
+    reconnectPending = true;
+    connected = false;
     setStatus('Disconnected. Start \'bin/server.dart\' to continue.');
     new Timer(RECONNECT_DELAY, connect);
   }
