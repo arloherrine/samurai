@@ -16,3 +16,29 @@ html, body {
     border-style: solid;
     width: 50%;
 }
+
+.card {
+    width: 8em;
+    height: 4em;
+    border-style: inset;
+    border-width: 2px;
+    float: left;
+    position: relative;
+}
+
+.command-button {
+    display: none;
+}
+
+.command-choice {
+    border-color: red;
+    border-width: 4px;
+    display: unset;
+}
+
+.command-chosen {
+    border-style: dashed;
+    border-color: green;
+    border-width: 4px;
+    display: unset;
+}

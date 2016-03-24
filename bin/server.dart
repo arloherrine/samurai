@@ -140,6 +140,8 @@ void main() {
           games[game] = new Game(new ServerInterface(game));
         }
         webSocket.handleError((error) => log.warning('Bad WebSocket request'));
+        // TODO if player is already in game, don't duplicate
+        // TODO else if game is in progress, fail (can't add players to in progress game)
         games[game].players.add(new Player(player));
         (games[game].interface as ServerInterface).addPlayer(player, webSocket);
       });

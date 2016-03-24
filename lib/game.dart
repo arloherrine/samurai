@@ -70,6 +70,9 @@ class Game {
     }
   }
 
+  CommandPart getCommandTree() {
+    return new CommandToken.root(playerIndex(), players, remainingActions(), hasMadeDeclaration);
+  }
 
   void play() {
     interface.gameStart();

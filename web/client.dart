@@ -86,6 +86,9 @@ class ClientInterface extends Interface {
 
   String startCommand;
 
+  CommandPart commandTree;
+  final List<StreamSubscription> clickSubscriptions = new List();
+
   ClientInterface(this.localPlayerName, this.webSocket) {
     webSocket.onMessage.listen((e) {
       String command = e.data;
@@ -106,6 +109,10 @@ class ClientInterface extends Interface {
           });
 
           displayElement.draw();
+          if (localPlayer == 0) {
+            commandTree = game.getCommandTree();
+            updateCommand();
+          }
           break;
         case 'alert':
           alert(localPlayer, command); break;
@@ -162,6 +169,62 @@ class ClientInterface extends Interface {
     rolls.clear();
     history.scrollTop = history.scrollHeight;
     displayElement.draw();
+
+    // TODO only show moves for active player
+    commandTree = game.getCommandTree();
+    querySelectorAll(".command-chosen").forEach((Element e) => e.classes.remove("command-chosen"));
+    querySelector('#command_input').value = "";
+    updateCommand();
+  }
+
+  void updateCommand([String selection]) {
+    Element commandInput = querySelector('#command_input');
+    if (selection != null) {
+      if (commandInput.value.isEmpty) {
+        commandInput.value = selection;
+      } else {
+        commandInput.value += " $selection";
+      }
+    }
+    querySelectorAll(".command-choice").forEach((Element e) => e.classes.remove("command-choice"));
+    for (StreamSubscription s in clickSubscriptions) {
+      s.cancel();
+    }
+    clickSubscriptions.clear();
+
+    CommandPart node = commandTree;
+    for (String token in commandInput.value.split(" ")) {
+      if (!token.isEmpty) {
+        querySelector(tokenToId(token)).classes.add("command-chosen");
+        node = node.choices[token];
+      }
+    }
+
+    if (node is CommandEnd) {
+      querySelector("#command_button").classes.add("command-choice");
+    } else {
+      for (String token in node.choices.keys) {
+        Element e = querySelector(tokenToId(token));
+        if (e != null) {
+          e.classes.add("command-choice");
+          clickSubscriptions.add(e.onClick.listen((e) => updateCommand(token)));
+        }
+      }
+    }
+  }
+
+  String tokenToId(String token) {
+    String result = token.replaceFirst("$localPlayer.action.", "action_button_");
+    if (new RegExp(r"^[0-9]*$").hasMatch(result)) {
+      result = "hand_$result";
+    }
+    if (result == "samurai" || result == "daimyo") {
+      result = "${localPlayer}_$result";
+    }
+    if (new RegExp(r"^[0-9]").hasMatch(result)) {
+      result = "player_$result";
+    }
+    return "#$result";
   }
 
   void alert(int playerIndex, String msg) {
@@ -226,6 +289,27 @@ class RootDisplayElement extends GameDisplayElement {
 
     element.append(localPlayer.element);
     localPlayer.draw();
+
+    DivElement buttonDiv = new DivElement();
+    element.append(buttonDiv);
+
+    drawActionButton(buttonDiv, 'end', 'End Turn');
+    drawActionButton(buttonDiv, 'shogun', 'Declare Shogun');
+    drawActionButton(buttonDiv, 'attack', 'Declare War');
+    drawActionButton(buttonDiv, 'ally', 'Declare Alliance');
+    drawActionButton(buttonDiv, 'dissolve', 'Dissolve Alliance');
+    drawActionButton(buttonDiv, 'draw', 'Draw Card');
+    drawActionButton(buttonDiv, 'discard', 'Discard');
+    drawActionButton(buttonDiv, 'put', 'Place Card');
+    drawActionButton(buttonDiv, 'play', 'Play Action Card');
+  }
+
+  void drawActionButton(Element buttonDiv, String id, String name) {
+    ButtonElement button = new ButtonElement();
+    button.id = 'action_button_$id';
+    button.appendText(name);
+    button.classes.add('command-button');
+    buttonDiv.append(button);
   }
 }
 
@@ -241,11 +325,12 @@ class PlayerElement extends GameDisplayElement {
       : super(new DivElement()),
         this.playerIndex = playerIndex,
         this.game = game,
-        daimyo = new HouseElement(game.players[playerIndex], true),
-        samurai = new HouseElement(game.players[playerIndex], false);
+        daimyo = new HouseElement(game.players[playerIndex], true, 'player_$playerIndex'),
+        samurai = new HouseElement(game.players[playerIndex], false, 'player_$playerIndex');
 
   void draw() {
     element.children.clear(); // TODO update instead of full re-draw
+    element.id = 'player_$playerIndex';
     element.style.float = 'left';
     element.style.borderStyle = 'solid';
 
@@ -352,8 +437,8 @@ class LocalPlayerElement extends PlayerElement {
     if (player.hand.isEmpty) {
       handDiv.appendText('<Empty>');
     }
-    for (Card c in player.hand) {
-      CardElement card = new CardElement(c);
+    for (var c = 0; c < player.hand.length; c++) {
+      CardElement card = new CardElement(player.hand[c], 'hand_$c');
       handDiv.append(card.element);
       card.draw();
     }
@@ -367,8 +452,9 @@ class LocalPlayerElement extends PlayerElement {
 class HouseElement extends GameDisplayElement {
   final Player player;
   final bool daimyo;
+  final String parentId;
 
-  HouseElement(this.player, this.daimyo) : super(new DivElement());
+  HouseElement(this.player, this.daimyo, this.parentId) : super(new DivElement());
 
   void draw() {
     element.children.clear(); // TODO update instead of full re-draw
@@ -383,11 +469,12 @@ class HouseElement extends GameDisplayElement {
     element.style.height = '4em';
     element.append(cardsDiv);
 
-    CardElement head = new CardElement(house.head);
+    String id = daimyo ? "${parentId}_daimyo" : "${parentId}_samurai";
+    CardElement head = new CardElement(house.head, "$id");
     cardsDiv.append(head.element);
     head.draw();
-    for (Card c in house.contents) {
-      CardElement card = new CardElement(c);
+    for (var c = 0; c < house.contents.length; c++) {
+      CardElement card = new CardElement(house.contents[c], "${id}_$c");
       cardsDiv.append(card.element);
       card.draw();
     }
@@ -399,15 +486,12 @@ class HouseElement extends GameDisplayElement {
 
 class CardElement extends GameDisplayElement {
   final Card card;
-  CardElement(this.card) : super(new DivElement());
+  final String id;
+  CardElement(this.card, this.id) : super(new DivElement());
 
   void draw() {
-    element.style..width = '8em'
-                 ..height = '4em'
-                 ..borderStyle = 'inset'
-                 ..borderWidth = '2px'
-                 ..float = 'left'
-                 ..position = 'relative';
+    element.id = "$id";
+    element.classes.add("card");
 
     DivElement nameDiv = new DivElement();
     nameDiv.style.textAlign = 'center';

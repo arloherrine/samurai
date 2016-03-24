@@ -1,5 +1,180 @@
 part of samurai;
 
+abstract class CommandPart {}
+
+class CommandToken extends CommandPart {
+  final Map<String, CommandPart> choices;
+  static final END = new CommandEnd();
+
+  CommandToken() : this.choices = new Map();
+
+  CommandToken.root(int playerIndex, List<Players> players, int actions, bool hasMadeDeclaration)
+      : this.choices = new Map() {
+    // End turn action
+    choices["$playerIndex.action.end"] = END;
+    Player player = players[playerIndex];
+    if (!hasMadeDeclaration) {
+      // Shogun declaration
+      if (!players.any((p) => p.isShogun)) {
+        choices["$playerIndex.action.shogun"] = END;
+      }
+
+      if (player.daimyo != null) {
+        CommandToken war = new CommandToken.war(player, players);
+        if (!war.choices.isEmpty) {
+          choices['$playerIndex.action.attack'] = war;
+        }
+      } else {
+        CommandToken ally = new CommandToken.ally(player, players);
+        if (!ally.choices.isEmpty) {
+          choices['$playerIndex.action.ally'] = ally;
+        }
+
+      }
+
+      // Dissolve Declaration
+      if (player.daimyo == null && player.ally != null) {
+        choices["$playerIndex.action.dissolve"] = END;
+      }
+    }
+    if (actions > 0) {
+      // Draw card
+      if (player.hand.length < MAX_HAND_SIZE) {
+        choices["$playerIndex.action.draw"] = END;
+      }
+      if (!player.hand.isEmpty) {
+        CommandToken discard = new CommandToken();
+        choices["$playerIndex.action.discard"] = discard;
+        for (var i = 0; i < player.hand.length; i++) {
+          discard.choices['$i'] = END;
+        }
+        choices['$playerIndex.action.put'] = new CommandToken.put(playerIndex, players, actions);
+        choices['$playerIndex.action.play'] = new CommandToken.play(playerIndex, players, actions);
+      }
+    }
+  }
+
+  CommandToken.war(Player player, List<Player> players) : this.choices = new Map() {
+    for (var i = 0; i < players.length; i++) {
+      Player target = players[i];
+      if (player != target && target.daimyo != null && target.ally == null) {
+        choices['$i'] = END;
+      }
+    }
+  }
+
+  CommandToken.ally(Player player, List<Player> players) : this.choices = new Map() {
+    for (var i = 0; i < players.length; i++) {
+      Player target = players[i];
+      if (player != target && (target.isShogun || target.daimyo.contents.any((card) => card is Castle))) {
+        choices['$i'] = END;
+      }
+    }
+  }
+
+  CommandToken.put(int playerIndex, List<Player> players, int actions) : this.choices = new Map() {
+    Player player = players[playerIndex];
+    for (var i = 0; i < player.hand.length; i++) {
+      Card card = player.hand[i];
+      if (!(card is ActionCard || card is SaveFace)) {
+        CommandToken put = new CommandToken();
+
+        if (!new PutInHouseAction(playerIndex, i, true).validate(players, actions)) {
+          put.choices['daimyo'] = END;
+          choices["$i"] = put;
+        }
+        if (!new PutInHouseAction(playerIndex, i, false).validate(players, actions)) {
+          put.choices['samurai'] = END;
+          choices["$i"] = put;
+        }
+      }
+    }
+  }
+
+  CommandToken.play(int playerIndex, List<Player> players, int actions) : this.choices = new Map() {
+    Player player = players[playerIndex];
+    for (var i = 0; i < player.hand.length; i++) {
+      Card card = player.hand[i];
+      if (card is ActionCard && actions >= card.actionCost()) {
+        if (card is NinjaSpy) {
+          CommandToken ninja = new CommandToken();
+          for (var p = 0; p < players.length; p++) {
+            Player target = players[p];
+            if (target == player) {
+              continue;
+            }
+            ninja.addLootIndicesAndDests(player, target.samurai, "$p.samurai", END);
+            ninja.addLootIndicesAndDests(player, target.daimyo, "$p.daimyo", END);
+          }
+          if (!ninja.choices.isEmpty) {
+            choices['$i'] = ninja;
+          }
+        } else if (card is EliteNinjaSpy) {
+          CommandToken eliteNinja = new CommandToken();
+          for (var p = 0; p < players.length; p++) {
+            Player target = players[p];
+            if (target == player) {
+              continue;
+            }
+            CommandToken samuraiLootAndIndex = new CommandToken();
+            samuraiLootAndIndex.addLootIndicesAndDests(player, target.samurai, "$p.samurai", END);
+            CommandToken daimyoLootAndIndex = new CommandToken();
+            daimyoLootAndIndex.addLootIndicesAndDests(player, target.daimyo, "$p.daimyo", END);
+
+            // TODO this allows stealing the same this twice, which won't validate properly. fix this?
+            eliteNinja.addLootIndicesAndDests(player, target.samurai, "$p.samurai", samuraiLootAndIndex);
+            eliteNinja.addLootIndicesAndDests(player, target.daimyo, "$p.daimyo", daimyoLootAndIndex);
+          }
+          if (!eliteNinja.choices.isEmpty) {
+            choices['$i'] = eliteNinja;
+          }
+        } else if (card is NinjaAssassin) {
+          choices['i'] = new CommandToken();
+          for (var p = 0; p < players.length; p++) {
+            if (players[p].daimyo != null) {
+              choices['i'].choices['$p.daimyo'] = END;
+            }
+            choices['i'].choices['$p.samurai'] = END;
+          }
+        } else if (card is Dishonor) {
+          choices['i'] = new CommandToken();
+          for (var p = 0; p < players.length; p++) {
+            choices['i'].choices['$p'] = END;
+          }
+        } else if (card is Daimyo) {
+          choices['i'] = new CommandToken();
+          for (var p = 0; p < players.length; p++) {
+            Player target = players[p];
+            if (target.daimyo == null && (target == player || target == player.ally)) {
+              choices['i'].choices['$p'] = END;
+            }
+          }
+        } else {
+          // TODO error of some kind?
+        }
+      }
+    }
+  }
+
+  void addLootIndicesAndDests(Player player, House house, String keyPrefix, CommandPart child) {
+    if (house != null) {
+      for (var c = 0; c < house.contents.length; c++) {
+        Map<String, CommandPart> destinations = new Map();
+        for (var d = 0; d < 3; d++) {
+          if (!player.validateSteal(house, c, d)) {
+            destinations['$d'] = child;
+          }
+        }
+        if (!destinations.isEmpty) {
+          choices['$keyPrefix.$c'] = new CommandToken(destinations);
+        }
+      }
+    }
+  }
+}
+
+class CommandEnd extends CommandPart {}
+
 abstract class Action {
   final int playerIndex;
   int actions;
@@ -15,7 +190,6 @@ abstract class Action {
       return null;
     }
   }
-
 
   String validateImpl(List<Player> players);
   void perform(List<Card> deck, List<Card> discard, List<Player> players, Interface interface);
@@ -48,6 +222,7 @@ class ShogunDeclaration extends Declaration {
     if (players.any((p) => p.isShogun)) {
       return "The title of shogun has already been claimed";
     }
+    // TODO can't be shogun if don't have daimyo
     return null;
   }
 
@@ -225,7 +400,7 @@ class PutInHouseAction extends Action {
   String validateImpl(players) {
     Player player = players[playerIndex];
     if (player.hand.isEmpty) {
-      return "You don't any cards to play";
+      return "You don't have any cards to play";
     }
     if (cardIndex >= player.hand.length) {
       return "Invalid card index";
@@ -281,7 +456,7 @@ class PlayOnAction extends Action {
       return "Invalid card index";
     }
 
-    var card = player.hand[cardIndex];
+    Card card = player.hand[cardIndex];
     if (!(card is ActionCard)) {
       return "Invalid use of card";
     }

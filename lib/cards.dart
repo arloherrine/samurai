@@ -133,8 +133,8 @@ class EliteNinjaSpy extends ActionCard {
   EliteNinjaSpy() : super("Elite Ninja Spy");
 
   String validate(Player player, List<Player> players, List<String> args) {
-    if (args.length != 6) {
-      return "Elite Ninja spy takes target player, house, 2 card, and 2 desination args";
+    if (args.length != 8) {
+      return "Elite Ninja spy takes target player1, house1, card1, desination1, player2, house2, card2, and desination2 args";
     }
     int targetIndex;
     try {
@@ -155,19 +155,19 @@ class EliteNinjaSpy extends ActionCard {
     } on FormatException {
       return "Invalid card index arg";
     }
-    int cardIndex2;
-    try {
-      cardIndex2 = int.parse(args[3]);
-    } on FormatException {
-      return "Invalid card index arg";
-    }
     int destinationIndex1;
-    switch (args[4]) {
+    switch (args[3]) {
       case 'daimyo': destinationIndex1 = 0; break;
       case 'samurai': destinationIndex1 = 1; break;
       case 'discard': destinationIndex1 = 2; break;
       default:
         return "Invalid destination arg";
+    }
+    int cardIndex2;
+    try {
+      cardIndex2 = int.parse(args[4]);
+    } on FormatException {
+      return "Invalid card index arg";
     }
     int destinationIndex2;
     switch (args[5]) {

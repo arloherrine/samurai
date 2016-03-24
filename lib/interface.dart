@@ -17,7 +17,8 @@ abstract class Interface {
       _startCallback(playerIndex, callback, (c) => doAction(playerIndex, players, remainingActions, hasMadeDeclaration, callback, c), true);
 
   void doAction(int playerIndex, List<Player> players, int remainingActions, bool hasMadeDeclaration, Function callback, String command) {
-    List<String> tokens = command.split(" ");
+    List<String> tokens = command.split(new RegExp(r"[ .]"));
+    print("tokens: $tokens");
     if (tokens.length < 3) {
       alert(playerIndex, "Not enough arguments: " + command);
       retryAction(playerIndex, players, remainingActions, hasMadeDeclaration, callback);
@@ -26,11 +27,13 @@ abstract class Interface {
     try {
       int receivedIndex = int.parse(tokens[0]);
       if (receivedIndex != playerIndex) {
+        print("incorrect index");
         alert(playerIndex, "first argument must always be the player's index: " + command);
         retryAction(playerIndex, players, remainingActions, hasMadeDeclaration, callback);
         return;
       }
     } on FormatException {
+      print("error parsing index");
       alert(playerIndex, "first argument must always be the player's index: " + command);
       retryAction(playerIndex, players, remainingActions, hasMadeDeclaration, callback);
       return;
@@ -142,7 +145,7 @@ abstract class Interface {
       _startCallback(playerIndex, callback, (c) => doDishonorResponse(playerIndex, hasDaimyo, hasSaveFace, callback, c), true);
 
   void doDishonorResponse(int playerIndex, bool hasDaimyo, bool hasSaveFace, Function callback, String command) {
-    List<String> tokens = command.split(" ");
+    List<String> tokens = command.split(new RegExp(r"[ .]"));
     if (tokens.length < 3) {
       alert(playerIndex, "Not enough arguments: " + command);
       retryDishonorResponse(playerIndex, hasDaimyo, hasSaveFace, callback);
@@ -224,7 +227,7 @@ abstract class Interface {
   }
 
   void doTakeCastle(int playerIndex, Function callback, String command) {
-    List<String> tokens = command.split(" ");
+    List<String> tokens = command.split(new RegExp(r"[ .]"));
     if (tokens.length < 3) {
       alert(playerIndex, "Not enough arguments: " + command);
       retryTakeCastle(playerIndex, callback);
@@ -271,7 +274,7 @@ abstract class Interface {
       _startCallback(playerIndex, callback, (c) => doSaveFace(playerIndex, callback, c), true);
 
   void doSaveFace(int playerIndex, Function callback, String command) {
-    List<String> tokens = command.split(" ");
+    List<String> tokens = command.split(new RegExp(r"[ .]"));
     if (tokens.length < 3) {
       alert(playerIndex, "Not enough arguments: " + command);
       retrySaveFace(playerIndex, callback);
